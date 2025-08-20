@@ -32,7 +32,7 @@ public class ExchangeRateCrawlerService {
         try {
             List<Map<String, String>> exchangeList = crawlRealtimeRate();
             // 현재 시간 추가
-            String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
 
             for (Map<String, String> rateData : exchangeList) {
                 String currencyCode = rateData.get("currency_code");
