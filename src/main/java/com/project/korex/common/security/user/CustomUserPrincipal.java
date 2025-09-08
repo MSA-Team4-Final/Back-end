@@ -6,9 +6,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
+import java.util.*;
 
 @Getter
 public class CustomUserPrincipal implements UserDetails{
@@ -33,8 +31,16 @@ public class CustomUserPrincipal implements UserDetails{
     //공통
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        if (user == null) return Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
-        return Collections.singletonList(new SimpleGrantedAuthority(user.getRole().getRoleName()));
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        authorities.add(new SimpleGrantedAuthority(user.getRole().getRoleName()));
+
+        if (Boolean.TRUE.equals(user.isRestricted())) {
+            authorities.add(new SimpleGrantedAuthority("RESTRICTED"));
+        } else {
+            authorities.add(new SimpleGrantedAuthority("UNLOCKED"));
+        }
+
+        return authorities;
     }
 
     //loginId 반환

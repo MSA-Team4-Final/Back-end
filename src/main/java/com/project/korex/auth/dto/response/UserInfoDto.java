@@ -16,7 +16,6 @@ public class UserInfoDto {
     private String role;
 
     private Boolean emailVerified;
-
-
+    private String status;
 
 }

@@ -13,5 +13,6 @@ public class AuthStatusDto {
     private boolean authenticated;
     @Schema(description = "사용자 정보", implementation = UserInfoDto.class, required = true)
     private UserInfoDto user;
+    private String accessToken;
 
 }

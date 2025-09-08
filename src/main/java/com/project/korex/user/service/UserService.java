@@ -45,7 +45,7 @@ public class UserService {
 
         if (email != null && !email.isBlank()) {
             emailVerified = emailVerificationTokenRepository
-                    .existsByEmailAndPurposeAndVerifiedTrue(email, VerificationPurpose.SIGN_UP);
+                    .existsByEmailAndVerifiedTrue(email);
         }
 
         return MyInfoResponseDto.builder()
@@ -81,7 +81,7 @@ public class UserService {
 
         // 휴대폰 변경
         if (req.getPhone() != null && !req.getPhone().isBlank()) {
-            String normalized = req.getPhone().replaceAll("\\D", ""); // 정규화(검증 아님)
+            String normalized = req.getPhone().replaceAll("\\D", "");
             if (!normalized.equals(user.getPhone())) {
                 if (userJpaRepository.existsByPhoneAndIdNot(normalized, user.getId())) {
                     throw new DuplicatePhoneException(ErrorCode.DUPLICATE_PHONE);

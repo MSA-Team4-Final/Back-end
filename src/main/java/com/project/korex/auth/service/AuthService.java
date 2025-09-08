@@ -72,7 +72,7 @@ public class AuthService {
 
     public void sendVerificationCode(String email, VerificationPurpose purpose)
             throws MessagingException, UnsupportedEncodingException {
-        if (userJpaRepository.existsByEmail(email)) {
+        if (purpose == VerificationPurpose.SIGN_UP && userJpaRepository.existsByEmail(email)) {
             throw new DuplicateEmailException(ErrorCode.DUPLICATE_EMAIL);
         }
 
@@ -126,7 +126,7 @@ public class AuthService {
         ctx.setVariable("code", code);
         ctx.setVariable("supportEmail", "support@korex.com");
 
-        String subject = (purpose == VerificationPurpose.SIGN_UP)
+        String subject = (purpose == VerificationPurpose.SIGN_UP || purpose == VerificationPurpose.MY_INFO)
                 ? "[Korex] 이메일 인증 코드"
                 : "[Korex] 비밀번호 재설정 인증 코드";
         String template = "email-verification";
@@ -292,13 +292,20 @@ public class AuthService {
         String email = findUser.getEmail();
         if (email != null && !email.isBlank()) {
             emailVerified = tokenRepository
-                    .existsByEmailAndPurposeAndVerifiedTrue(email, VerificationPurpose.SIGN_UP);
+                    .existsByEmailAndVerifiedTrue(email);
         }
 
         List<String> authorities = new ArrayList<>();
         authorities.add(findUser.getRole().getRoleName());
-        if (emailVerified) authorities.add("VERIFIED");
-        if (findUser.isRestricted()) authorities.add("RESTRICTED");
+        if (findUser.isRestricted()) {
+            authorities.add("RESTRICTED");
+        } else {
+            authorities.add("UNLOCKED");
+        }
+
+        if (emailVerified && !findUser.isRestricted()) {
+            authorities.add("VERIFIED");
+        }
 
         // 액세스 토큰 생성
         String accessToken  = jwtProvider.createAccessToken(findUser.getLoginId(), authorities);
@@ -319,12 +326,18 @@ public class AuthService {
         // 토큰 저장
         refreshTokenRepository.save(newRefreshToken);
 
+        String status = findUser.isRestricted() ? "RESTRICTED" : "UNLOCKED";
+        if (emailVerified && !findUser.isRestricted()) {
+            status = "VERIFIED";
+        }
+
         // 사용자 정보 생성
         UserInfoDto userInfo = new UserInfoDto(
                 findUser.getId(),
                 findUser.getLoginId(),
                 findUser.getRole().getRoleName(),
-                emailVerified
+                emailVerified,
+                status
         );
 
         Map<String, Object> authData = new HashMap<>();
@@ -389,7 +402,7 @@ public class AuthService {
         String email = findUser.getEmail();
         if (email != null && !email.isBlank()) {
             emailVerified = tokenRepository
-                    .existsByEmailAndPurposeAndVerifiedTrue(email, VerificationPurpose.SIGN_UP);
+                    .existsByEmailAndVerifiedTrue(email);
         }
 
         String role = findUser.getRole().getRoleName();

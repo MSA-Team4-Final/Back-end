@@ -16,7 +16,7 @@ public interface EmailVerificationTokenRepository extends JpaRepository<EmailVer
     Optional<EmailVerificationToken> findTopByEmailOrderByExpiryDateDesc(String email);
     Optional<EmailVerificationToken> findTopByEmailAndPurposeOrderByExpiryDateDesc(String email, VerificationPurpose purpose);
 
-    boolean existsByEmailAndPurposeAndVerifiedTrue(String email, VerificationPurpose purpose);
+    boolean existsByEmailAndVerifiedTrue(String email);
 
     @Modifying(flushAutomatically = true)
     @Query("DELETE FROM EmailVerificationToken t WHERE t.email = :email")
