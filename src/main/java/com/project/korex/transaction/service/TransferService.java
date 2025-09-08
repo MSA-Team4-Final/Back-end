@@ -35,12 +35,12 @@ public class TransferService {
             Users toUser = userRepository.findByPhone(request.getRecipientPhone())
                     .orElseThrow(() -> new RuntimeException("수취인을 찾을 수 없습니다"));
 
-//            if (!passwordEncoder.matches(request.getTransactionPassword(), fromUser.getTransactionPassword())) {
-//                throw new RuntimeException("거래 비밀번호가 일치하지 않습니다");
-//            }
-            if (!request.getTransactionPassword().equals(fromUser.getTransactionPassword())) {
+            if (!passwordEncoder.matches(request.getTransactionPassword(), fromUser.getTransactionPassword())) {
                 throw new RuntimeException("거래 비밀번호가 일치하지 않습니다");
             }
+//            if (!request.getTransactionPassword().equals(fromUser.getTransactionPassword())) {
+//                throw new RuntimeException("거래 비밀번호가 일치하지 않습니다");
+//            }
 
             if (!toUser.getName().equals(request.getRecipientName())) {
                 throw new RuntimeException("수취인 이름과 전화번호가 일치하지 않습니다");

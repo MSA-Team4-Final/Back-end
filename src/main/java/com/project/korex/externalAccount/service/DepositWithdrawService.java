@@ -45,13 +45,13 @@ public class DepositWithdrawService {
     public TransactionResponseDto deposit(Users user, DepositRequestDto request) {
         // 거래 비밀번호 검증
 
-        if(!user.getTransactionPassword().equals(request.getTransactionPassword())){
-            throw new IllegalArgumentException("거래 비밀번호가 일치하지 않습니다.");
-        }
-//        if (!passwordEncoder.matches(request.getTransactionPassword(),
-//                user.getTransactionPassword())) {
-//            throw new IllegalArgumentException("거래 비밀번호가 일치하지 않습니다");
+//        if(!user.getTransactionPassword().equals(request.getTransactionPassword())){
+//            throw new IllegalArgumentException("거래 비밀번호가 일치하지 않습니다.");
 //        }
+        if (!passwordEncoder.matches(request.getTransactionPassword(),
+                user.getTransactionPassword())) {
+            throw new IllegalArgumentException("거래 비밀번호가 일치하지 않습니다");
+        }
 
         // 주계좌 조회
         ExternalAccount primaryAccount = externalAccountRepository
@@ -109,13 +109,13 @@ public class DepositWithdrawService {
         }
 
         // 거래 비밀번호 검증
-        if(!user.getTransactionPassword().equals(request.getTransactionPassword())){
-            throw new IllegalArgumentException("거래 비밀번호가 일치하지 않습니다.");
-        }
-//        if (!passwordEncoder.matches(request.getTransactionPassword(),
-//                user.getTransactionPassword())) {
-//            throw new IllegalArgumentException("거래 비밀번호가 일치하지 않습니다");
+//        if(!user.getTransactionPassword().equals(request.getTransactionPassword())){
+//            throw new IllegalArgumentException("거래 비밀번호가 일치하지 않습니다.");
 //        }
+        if (!passwordEncoder.matches(request.getTransactionPassword(),
+                user.getTransactionPassword())) {
+            throw new IllegalArgumentException("거래 비밀번호가 일치하지 않습니다");
+        }
 
         // KRW 잔액 확인 (기존 BalanceService 활용)
         if (!balanceService.hasEnoughBalance(user.getId(), KRW_CURRENCY, request.getAmount())) {
