@@ -5,6 +5,7 @@ import com.project.korex.ForeignTransfer.dto.request.TransferExchangeRequest;
 import com.project.korex.ForeignTransfer.dto.response.ForeignTransferResponse;
 import com.project.korex.ForeignTransfer.dto.response.TransferExchangeResponse;
 import com.project.korex.ForeignTransfer.entity.ForeignTransferTransaction;
+import com.project.korex.ForeignTransfer.entity.RecipientSnapshot;
 import com.project.korex.ForeignTransfer.entity.Sender;
 import com.project.korex.ForeignTransfer.entity.TermsAgreement;
 import com.project.korex.ForeignTransfer.enums.RequestStatus;
@@ -158,7 +159,16 @@ public class ForeignTransferService {
                 .relationRecipient(request.getRelationRecipient())
                 .transactionType(TransactionType.TRANSFER)
                 .build();
-        transactionRepository.save(ftTransaction);
+
+        RecipientSnapshot snapshot = new RecipientSnapshot();
+        snapshot.setName(request.getRecipientName());
+        snapshot.setBankName(request.getRecipientBank());
+        snapshot.setAccountNumber(request.getRecipientAccountNumber());
+        snapshot.setEmail(request.getRecipientEmail());
+        snapshot.setTransaction(ftTransaction);
+        snapshot.setCreatedAt(LocalDateTime.now());
+        snapshot.setCurrencyCode(request.getCurrencyCode());
+        snapshot.setPhoneNumber(request.getPhoneNumber());
 
         Sender sender = Sender.builder()
                 .user(user)
@@ -177,6 +187,7 @@ public class ForeignTransferService {
                 .proofDocumentFilePath(saveFilePath(ftTransaction, proofDocumentFile, "PROOF"))
                 .relationDocumentFilePath(saveFilePath(ftTransaction, relationDocumentFile, "RELATION"))
                 .build();
+        ftTransaction.setRecipientSnapshot(snapshot);
         ftTransaction.setSender(sender);
         transactionRepository.save(ftTransaction);
 

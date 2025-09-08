@@ -48,8 +48,10 @@ public class ForeignTransferRequest {
     private BigDecimal convertedAmount;     // 환전 금액
     private BigDecimal feeAmount;           // 수수료
 
+    // 6. 수취인 정보
+    private Long recipientId;               // 🔹 새로 추가
     private String recipientName;
-    private String recipientPhone;
+    private String recipientBank;
+    private String recipientAccountNumber;
     private String recipientEmail;
-    private String recipientAddress;
 }

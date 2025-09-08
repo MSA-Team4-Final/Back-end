@@ -87,6 +87,12 @@ public class ForeignTransferTransaction {
     @LastModifiedDate
     private LocalDateTime updatedAt;
 
+    @OneToOne(mappedBy = "transaction", cascade = CascadeType.ALL)
+    private RecipientSnapshot recipientSnapshot;
+
+    @Column(name = "recipient_id")
+    private Long recipientId;
+
     // 편의 메서드: Sender와 양방향 관계 설정
     public void setSender(Sender sender) {
         this.sender = sender;

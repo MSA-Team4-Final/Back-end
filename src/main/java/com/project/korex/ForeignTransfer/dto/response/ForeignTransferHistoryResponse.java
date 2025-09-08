@@ -9,28 +9,43 @@ import java.time.LocalDateTime;
 @Data
 @Builder
 public class ForeignTransferHistoryResponse {
+    // 기본 거래 정보
     private Long transferId;
-    private BigDecimal transferAmount;        // 원화 송금 금액
+    private String transactionId;             // 거래 고유 ID
+    private String accountType;               // 출금 계좌 종류
+    private String transferStatus;            // 송금 상태
+    private String requestStatus;             // 요청 상태
+    private LocalDateTime createdAt;          // 생성일
+    private LocalDateTime agreedAt;           // 약관 동의일
+
+    // 송금 정보
+    private BigDecimal transferAmount;        // 송금 원화 금액
     private BigDecimal convertedAmount;       // 환전 후 금액
     private BigDecimal appliedRate;           // 적용 환율
     private BigDecimal feeAmount;             // 수수료
     private BigDecimal totalDeductedAmount;   // 총 차감 금액
-    private String accountType;               // KRW / FOREIGN
-    private String transferStatus;            // NOT_STARTED / IN_PROGRESS / COMPLETED
-    private String requestStatus;             // SUBMITTED / APPROVED 등
     private String transferReason;            // 송금 사유
-    private String relationRecipient;         // 수취인과 관계
-    private String senderName;                // 송금인 이름
-    private String countryNumber;
-    private String phoneNumber;
-    private String email;
-    private String country;
-    private String engAddress;
-    private String accountNumber;             // 송금 계좌 번호
-    private LocalDateTime createdAt;
-    private LocalDateTime agreedAt;           // 약관 동의 시간
+    private String staffMessage;              // 직원/관리자 메모
+
+    // 송금인 정보
+    private String senderName;
+    private String senderCurrencyCode;
+    private String senderAccountNumber;
+    private String senderCountry;             // 송금인 국가
+    private String senderAddress;             // 송금인 주소
+    private String senderCountryNumber;       // 송금인 국가번호 (전화)
+    private String senderPhoneNumber;         // 송금인 전화번호
+    private String senderEmail;               // 송금인 이메일
+
+    // 수취인 정보 (스냅샷)
+    private Long recipientId;
     private String recipientName;
-    private String recipientPhone;
+    private String recipientBank;
+    private String recipientAccountNumber;
+    private String recipientCurrencyCode;
+    private String recipientPhoneNumber;
     private String recipientEmail;
-    private String recipientAddress;
+    private String recipientCountry;          // 수취인 국가
+    private String recipientAddress;          // 수취인 주소
+    private String relationRecipient;         // 송금인과의 관계
 }

@@ -76,15 +76,9 @@ public class ForeignTransferController {
     }
 
     @GetMapping("/history")
-    public ResponseEntity<List<ForeignTransferHistoryResponse>> getFullTransferHistory(
-            @Parameter(hidden = true) @AuthenticationPrincipal CustomUserPrincipal principal
-    ) {
+    public List<ForeignTransferHistoryResponse> getUserTransferHistory(
+            @AuthenticationPrincipal CustomUserPrincipal principal) {
         String loginId = principal.getName();
-
-        // Service에서 로그인한 사용자 전체 송금 내역 조회
-        List<ForeignTransferHistoryResponse> historyList = historyService.getUserTransferHistory(loginId);
-
-        return ResponseEntity.ok(historyList);
+        return historyService.getUserTransferHistory(loginId);
     }
-
 }
