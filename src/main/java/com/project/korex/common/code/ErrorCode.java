@@ -54,7 +54,10 @@ public enum ErrorCode {
     INVALID_REQUEST(HttpStatus.UNAUTHORIZED, "F001", "본인은 즐겨찾기에 추가할 수 없습니다."),
     DUPLICATE_FAVORITE(HttpStatus.CONFLICT, "F002", "이미 즐겨찾기에 등록된 친구입니다"),
     FAVORITE_LIMIT_EXCEED(HttpStatus.CONFLICT, "F003", "즐겨찾기는 최대 4명까지만 등록 가능합니다"),
-    FAVORITE_NOT_FOUND(HttpStatus.NOT_FOUND, "F004", "즐겨찾기를 찾을 수 없습니다");
+    FAVORITE_NOT_FOUND(HttpStatus.NOT_FOUND, "F004", "즐겨찾기를 찾을 수 없습니다"),
+
+    // Account
+    INVALID_ACCOUNT_PASSWORD(HttpStatus.BAD_REQUEST, "AC01", "계좌 비밀번호가 유효하지 않습니다");
 
     private final HttpStatus status;
     private final String code;

@@ -55,4 +55,8 @@ public class JoinRequestDto {
     @Pattern(regexp = "^\\d{8}$", message = "생년월일은 8자리 숫자(yyyyMMdd) 형식이어야 합니다.")
     private String birth;
 
+    private String transactionPassword;
+
+    private String transactionPasswordCheck;
+
 }
