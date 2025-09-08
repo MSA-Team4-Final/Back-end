@@ -39,12 +39,8 @@ public enum ErrorCode {
     // Balance
     INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST,"B001", "잔액이 부족합니다."),
     NOT_FOUND(HttpStatus.NOT_FOUND, "B002", "해당 통화가 없습니다."),
-  TRANSFER_NOT_SELF(HttpStatus.BAD_REQUEST, "B003", "본인에게 송금할 수 없습니다."),
+   TRANSFER_NOT_SELF(HttpStatus.BAD_REQUEST, "B003", "본인에게 송금할 수 없습니다."),
 
-    // Support (SXXX)
-    INQUIRY_NOT_FOUND(HttpStatus.NOT_FOUND, "S001", "문의 내역을 찾을 수 없습니다."),
-    INQUIRY_WITHDRAW_CONFLICT(HttpStatus.CONFLICT, "S002", "문의 철회가 불가능한 상태입니다."),
- 
     // ForeignTransfer
     CURRENCY_NOT_FOUND(HttpStatus.NOT_FOUND, "F001", "해당 통화를 찾을 수 없습니다."),
     RECIPIENT_NOT_FOUND(HttpStatus.NOT_FOUND, "F002", "수취인 정보를 찾을 수 없습니다."),
@@ -58,7 +54,10 @@ public enum ErrorCode {
     INVALID_REQUEST(HttpStatus.UNAUTHORIZED, "F001", "본인은 즐겨찾기에 추가할 수 없습니다."),
     DUPLICATE_FAVORITE(HttpStatus.CONFLICT, "F002", "이미 즐겨찾기에 등록된 친구입니다"),
     FAVORITE_LIMIT_EXCEED(HttpStatus.CONFLICT, "F003", "즐겨찾기는 최대 4명까지만 등록 가능합니다"),
-    FAVORITE_NOT_FOUND(HttpStatus.NOT_FOUND, "F004", "즐겨찾기를 찾을 수 없습니다");
+    FAVORITE_NOT_FOUND(HttpStatus.NOT_FOUND, "F004", "즐겨찾기를 찾을 수 없습니다"),
+
+    // Account
+    INVALID_ACCOUNT_PASSWORD(HttpStatus.BAD_REQUEST, "AC01", "계좌 비밀번호가 유효하지 않습니다");
 
     private final HttpStatus status;
     private final String code;

@@ -67,7 +67,8 @@ public class ExchangeRateController {
         }
 
         // 출력 통화 지정
-        List<String> currencies = Arrays.asList("USD", "EUR", "JPY", "CNY", "CAD", "CHF");
+        List<String> currencies = Arrays.asList("USD", "EUR", "JPY", "AUD",
+                "GBP", "CNY", "CAD", "CHF");
 
         return exchangeRateService.getExchangeRatesByDateAndCurrencies(date, currencies);
     }

@@ -33,7 +33,7 @@ public class NaverNewsApiService {
      * 네이버 뉴스 API로 환율 관련 최신 뉴스 가져오기
      */
     public List<Map<String, String>> getLatestExchangeNewsFromApi() {
-        return getLatestExchangeNewsFromApi("달러 환율, 환율 상승, 환율 하락", 10);
+        return getLatestExchangeNewsFromApi("달러 환율, 환율 상승, 환율 하락", 50);
     }
 
     /**

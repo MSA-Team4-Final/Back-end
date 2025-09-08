@@ -1,5 +1,7 @@
 package com.project.korex.auth.service;
 
+import com.project.korex.account.exception.InvalidAccountPasswordException;
+import com.project.korex.account.service.AccountPasswordService;
 import com.project.korex.auth.dto.request.FindIdRequest;
 import com.project.korex.auth.dto.request.JoinRequestDto;
 import com.project.korex.auth.dto.request.LoginRequestDto;
@@ -61,6 +63,7 @@ public class AuthService {
     private final JavaMailSender mailSender;
     private final SpringTemplateEngine templateEngine;
     private final SecureRandom random = new SecureRandom();
+    private final AccountPasswordService passwordService;
 
     private static final int VERIFY_EXPIRE_MINUTES = 10;
 
@@ -69,6 +72,10 @@ public class AuthService {
 
     public void sendVerificationCode(String email, VerificationPurpose purpose)
             throws MessagingException, UnsupportedEncodingException {
+        if (userJpaRepository.existsByEmail(email)) {
+            throw new DuplicateEmailException(ErrorCode.DUPLICATE_EMAIL);
+        }
+
         String code = generateRandomCode();
 
         EmailVerificationToken token = EmailVerificationToken.builder()
@@ -145,6 +152,11 @@ public class AuthService {
             throw new PasswordMismatchException(ErrorCode.PASSWORD_MISMATCH);
         }
 
+        // 계좌 비밀번화 확인 검증
+        if (!joinRequestDto.getTransactionPassword().equals(joinRequestDto.getTransactionPasswordCheck())) {
+            throw new PasswordMismatchException(ErrorCode.PASSWORD_MISMATCH);
+        }
+
         // 아이디 중복 검증
         String loginId = joinRequestDto.getLoginId();
         if (userJpaRepository.existsByLoginId(loginId)) {
@@ -162,8 +174,16 @@ public class AuthService {
         if (userJpaRepository.existsByPhone(phone)) {
             throw new DuplicatePhoneException(ErrorCode.DUPLICATE_PHONE);
         }
+
         // 가입 검증 시
         assertVerified(email, VerificationPurpose.SIGN_UP);
+
+        // 계좌 비밀번호 규칙 검증
+        if (!passwordService.validatePassword(joinRequestDto.getTransactionPassword(),
+                joinRequestDto.getBirth(),
+                joinRequestDto.getPhone())) {
+            throw new InvalidAccountPasswordException(ErrorCode.INVALID_ACCOUNT_PASSWORD);
+        }
 
         // 유저 타입 가져오기
         Role role = roleJpaRepository.findByRoleName(RoleType.USER.getKey())
@@ -171,6 +191,8 @@ public class AuthService {
 
         String krwAccount = generateAccountNumber("KRW");
         String foreignAccount = generateAccountNumber("FOREIGN");
+
+        String encryptedAccountPassword = passwordService.encryptPassword(joinRequestDto.getTransactionPassword());
 
         // 유저 빌더 엔티티 생성(암호화 포함)
         Users newUser = Users.builder()
@@ -182,6 +204,7 @@ public class AuthService {
                 .birth(joinRequestDto.getBirth())
                 .krwAccount(krwAccount)
                 .foreignAccount(foreignAccount)
+                .transactionPassword(encryptedAccountPassword)
                 .role(role)
                 .build();
 

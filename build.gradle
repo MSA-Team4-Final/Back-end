@@ -25,6 +25,9 @@ repositories {
 
 dependencies {
 
+	// Spring Batch
+	implementation 'org.springframework.boot:spring-boot-starter-batch'
+
 	// Spring Security
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 
@@ -62,6 +65,9 @@ dependencies {
 	// smtp
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
 	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+
+	// clova ocr
+	implementation 'org.json:json:20230227'
 
 	// Test
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'

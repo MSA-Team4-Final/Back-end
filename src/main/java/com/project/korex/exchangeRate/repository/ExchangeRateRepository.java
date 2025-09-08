@@ -2,6 +2,9 @@ package com.project.korex.exchangeRate.repository;
 
 import com.project.korex.exchangeRate.entity.ExchangeRate;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -20,6 +23,11 @@ public interface ExchangeRateRepository extends JpaRepository<ExchangeRate, Long
     List<ExchangeRate> findByBaseDateAndCurrencyCodeIn(LocalDate baseDate, List<String> currencyCodes);
 
     void deleteByBaseDate(LocalDate baseDate);
+
+    @Modifying
+    @Query("DELETE FROM ExchangeRate e WHERE e.baseDate = :baseDate AND e.currencyCode = :currencyCode")
+    void deleteByBaseDateAndCurrencyCode(@Param("baseDate") LocalDate baseDate,
+                                         @Param("currencyCode") String currencyCode);
 
 
 }

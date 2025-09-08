@@ -169,4 +169,9 @@ public class AdminService {
                 })
                 .collect(Collectors.toList());
     }
+
+    //Todo: 해외송금 리스트 출력, 승인/거절 처리
+
+    //Todo: 수수료(송금/환전) 설정
+
 }
