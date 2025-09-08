@@ -6,6 +6,7 @@ import com.project.korex.externalAccount.entity.Bank;
 import com.project.korex.externalAccount.entity.ExternalAccount;
 import com.project.korex.externalAccount.repository.BankRepository;
 import com.project.korex.externalAccount.repository.ExternalAccountRepository;
+import com.project.korex.externalAccount.repository.TransactionExternalAccountRepository;
 import com.project.korex.user.entity.Users;
 import com.project.korex.user.repository.jpa.UserJpaRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -13,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -24,12 +26,13 @@ public class ExternalAccountService {
     private final ExternalAccountRepository externalAccountRepository;
     private final BankRepository bankRepository;
     private final UserJpaRepository usersRepository;
+    private final TransactionExternalAccountRepository transactionExternalAccountRepository;
 
     @Transactional(readOnly = true)
     public List<ExternalAccountResponseDto> getUserAccounts(Long userId) {
         Users user = getUserEntity(userId);
         List<ExternalAccount> accounts = externalAccountRepository
-                .findByUserOrderByIsPrimaryDescCreatedAtAsc(user);
+                .findByUserAndDeletedFalseOrderByIsPrimaryDescCreatedAtAsc(user);
 
         return accounts.stream()
                 .map(this::toResponse)
@@ -41,14 +44,14 @@ public class ExternalAccountService {
         Bank bank = getBankEntity(request.getBankCode());
 
         // 최대 계좌 수 체크
-        long accountCount = externalAccountRepository.countByUser(user);
+        long accountCount = externalAccountRepository.countByUserAndDeletedFalse(user);
         if (accountCount >= 3) {
             throw new IllegalArgumentException("최대 3개의 외부 계좌만 등록할 수 있습니다.");
         }
 
         // 중복 계좌 체크
         boolean isDuplicate = externalAccountRepository
-                .existsByUserAndBankCodeAndAccountNumber(
+                .existsByUserAndBankCodeAndAccountNumberAndDeletedFalse(
                         user, bank, request.getAccountNumber());
 
         if (isDuplicate) {
@@ -60,7 +63,7 @@ public class ExternalAccountService {
 
         // 주계좌 설정 시 기존 주계좌 해제
         if (request.getIsPrimary() || isFirstAccount) {
-            externalAccountRepository.updateAllToPrimaryFalse(user);
+            externalAccountRepository.updateAllToPrimaryFalseAndDeletedFalse(user);
         }
 
         ExternalAccount account = new ExternalAccount();
@@ -82,7 +85,7 @@ public class ExternalAccountService {
                 .orElseThrow(() -> new EntityNotFoundException("계좌를 찾을 수 없습니다."));
 
         // 모든 계좌의 주계좌 설정 해제
-        externalAccountRepository.updateAllToPrimaryFalse(user);
+        externalAccountRepository.updateAllToPrimaryFalseAndDeletedFalse(user);
 
         // 선택한 계좌를 주계좌로 설정
         account.setIsPrimary(true);
@@ -98,18 +101,20 @@ public class ExternalAccountService {
                 .orElseThrow(() -> new EntityNotFoundException("계좌를 찾을 수 없습니다."));
 
         // 계좌가 2개 이상이고 삭제하려는 계좌가 주계좌인 경우 삭제 불가
-        long accountCount = externalAccountRepository.countByUser(user);
+        long accountCount = externalAccountRepository.countByUserAndDeletedFalse(user);
         if (account.getIsPrimary() && accountCount > 1) {
             throw new IllegalArgumentException("주계좌를 삭제하려면 다른 계좌를 주계좌로 변경한 후 삭제해주세요.");
         }
 
         // 소프트 삭제
-        externalAccountRepository.delete(account);
+        account.setDeleted(true);
+        account.setDeletedAt(LocalDateTime.now());
+        externalAccountRepository.save(account);
 
         // 삭제된 계좌가 주계좌이고 다른 계좌가 있다면 첫 번째 계좌를 주계좌로 설정
         if (account.getIsPrimary() && accountCount > 1) {
             List<ExternalAccount> remainingAccounts = externalAccountRepository
-                    .findByUserOrderByIsPrimaryDescCreatedAtAsc(user);
+                    .findByUserAndDeletedFalseOrderByIsPrimaryDescCreatedAtAsc(user);
 
             if (!remainingAccounts.isEmpty()) {
                 ExternalAccount firstAccount = remainingAccounts.get(0);

@@ -20,7 +20,7 @@ public class TransactionExternalAccount {
     private Transaction transaction;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "external_account_id")
+    @JoinColumn(name = "external_account_id", nullable = true)
     private ExternalAccount externalAccount;
 
     @Enumerated(EnumType.STRING)

@@ -3,6 +3,7 @@ package com.project.korex.externalAccount.repository;
 import com.project.korex.externalAccount.entity.TransactionExternalAccount;
 import com.project.korex.externalAccount.enums.AccountRole;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -35,4 +36,7 @@ public interface TransactionExternalAccountRepository extends JpaRepository<Tran
             "LEFT JOIN FETCH tea.externalAccount " +
             "WHERE tea.transaction.id = :transactionId")
     List<TransactionExternalAccount> findByTransactionIdWithExternalAccount(@Param("transactionId") Long transactionId);
+
 }
+
+
