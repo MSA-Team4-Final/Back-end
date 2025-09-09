@@ -93,7 +93,8 @@ public class ExchangeController {
                     userId,
                     request.getFromCurrency(),
                     request.getToCurrency(),
-                    request.getAmount()
+                    request.getAmount(),
+                    request.getTransactionPassword()
             );
 
             ExchangeExecutionResponseDto response = ExchangeExecutionResponseDto.builder()
