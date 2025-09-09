@@ -55,23 +55,18 @@ public class ForeignTransferExchangeService {
         BigDecimal exchangeRate = BigDecimal.ONE;
         BigDecimal convertedAmount = fromAmount;
 
-        if (toCurrency != null && !toCurrency.isEmpty()) {
-            exchangeRate = getExchangeRate(toCurrency); // ✅ 항상 환율 가져오기
-        }
-
-        if (isForeignAccount) {
-            // 원화 → 외화 변환
+        if (isForeignAccount && toCurrency != null && !toCurrency.isEmpty()) {
+            exchangeRate = getExchangeRate(toCurrency); // 원화 → 외화 환율
             convertedAmount = fromAmount.divide(exchangeRate, 2, RoundingMode.HALF_UP);
+            if ("JPY".equals(toCurrency)) convertedAmount = convertedAmount.setScale(0, RoundingMode.HALF_UP);
         } else {
-            // 원화 그대로
-            convertedAmount = fromAmount;
+            convertedAmount = fromAmount.setScale(2, RoundingMode.HALF_UP);
         }
 
         // ✅ 수수료 정책은 항상 원화 기준
         TransferFeeAdmin feePolicy = getFeePolicy("KRW");
         BigDecimal feePercentage = BigDecimal.valueOf(feePolicy.getRate());
         BigDecimal minFee = BigDecimal.valueOf(feePolicy.getMinFee());
-
         BigDecimal feeInKRW;
         if (isForeignAccount) {
             // 외화 계좌는 원화로 환산한 금액 기준으로 수수료 산정

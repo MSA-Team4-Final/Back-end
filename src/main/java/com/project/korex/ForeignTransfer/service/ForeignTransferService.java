@@ -122,12 +122,6 @@ public class ForeignTransferService {
             balanceRepository.save(krwBalance);
         }
 
-        Currency krwCurrency = currencyRepository.findByCode("KRW")
-                .orElseThrow(() -> new RuntimeException("KRW 통화 정보가 없습니다."));
-        Currency targetCurrencyObj = recipientAccountType == AccountType.KRW ? krwCurrency :
-                currencyRepository.findByCode(toCurrency)
-                        .orElseThrow(() -> new RuntimeException(toCurrency + " 통화 정보가 없습니다."));
-
         Transaction generalTransaction = Transaction.builder()
                 .fromUser(user)
                 .toUser(user)
@@ -137,8 +131,10 @@ public class ForeignTransferService {
                 .exchangeRateApplied(appliedRate)
                 .feeAmount(feeAmount)
                 .totalDeductedAmount(totalDeductedAmountKRW)
-                .fromCurrencyCode(krwCurrency)
-                .toCurrencyCode(targetCurrencyObj)
+                .fromCurrencyCode(currencyRepository.findByCode("KRW").orElseThrow())
+                .toCurrencyCode(recipientAccountType == AccountType.FOREIGN
+                        ? currencyRepository.findByCode(toCurrency).orElseThrow()
+                        : currencyRepository.findByCode("KRW").orElseThrow())
                 .status("PENDING")
                 .build();
         globalTransactionRepository.save(generalTransaction);
@@ -153,8 +149,8 @@ public class ForeignTransferService {
                 .convertedAmount(convertedAmount)
                 .exchangeRate(appliedRate)
                 .accountPassword(request.getAccountPassword())
-                .krwNumber(request.getKrwAccount())
-                .foreignNumber(request.getForeignAccount())
+                .krwNumber(recipientAccountType == AccountType.KRW ? request.getAccountNumber() : null)
+                .foreignNumber(recipientAccountType == AccountType.FOREIGN ? request.getAccountNumber() : null)
                 .staffMessage(request.getStaffMessage())
                 .relationRecipient(request.getRelationRecipient())
                 .transactionType(TransactionType.TRANSFER)
@@ -169,6 +165,8 @@ public class ForeignTransferService {
         snapshot.setCreatedAt(LocalDateTime.now());
         snapshot.setCurrencyCode(request.getCurrencyCode());
         snapshot.setPhoneNumber(request.getPhoneNumber());
+        snapshot.setEngAddress(request.getEngAddress());
+        snapshot.setCountry(request.getCountry());
 
         Sender sender = Sender.builder()
                 .user(user)
@@ -181,8 +179,8 @@ public class ForeignTransferService {
                 .country(request.getCountry())
                 .engAddress(request.getEngAddress())
                 .relationRecipient(request.getRelationRecipient())
-                .accountType("KRW")
-                .accountNumber(request.getAccountNumber())
+                .accountType(recipientAccountType.name()) // KRW 또는 FOREIGN
+                .accountNumber(request.getAccountNumber()) // Builder 그대로 사용
                 .idFilePath(saveFilePath(ftTransaction, idFile, "ID"))
                 .proofDocumentFilePath(saveFilePath(ftTransaction, proofDocumentFile, "PROOF"))
                 .relationDocumentFilePath(saveFilePath(ftTransaction, relationDocumentFile, "RELATION"))

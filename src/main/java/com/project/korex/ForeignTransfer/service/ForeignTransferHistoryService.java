@@ -63,8 +63,6 @@ public class ForeignTransferHistoryService {
                     .senderAccountNumber(accountNumber)
                     .senderCountry(tx.getSender() != null ? tx.getSender().getCountry() : null)
                     .senderAddress(tx.getSender() != null ? tx.getSender().getEngAddress() : null)
-                    .senderCountryNumber(tx.getSender() != null ? tx.getSender().getCountryNumber() : null)
-                    .senderPhoneNumber(tx.getSender() != null ? tx.getSender().getPhoneNumber() : null)
                     .senderEmail(tx.getSender() != null ? tx.getSender().getEmail() : null)
 
                     // 수취인 정보
@@ -73,7 +71,6 @@ public class ForeignTransferHistoryService {
                     .recipientBank(snapshot != null ? snapshot.getBankName() : "정보 없음")
                     .recipientAccountNumber(snapshot != null ? snapshot.getAccountNumber() : "정보 없음")
                     .recipientCurrencyCode(recipientCurrency)
-                    .recipientPhoneNumber(snapshot != null ? snapshot.getPhoneNumber() : null)
                     .recipientEmail(snapshot != null ? snapshot.getEmail() : "정보 없음")
                     .recipientCountry(snapshot != null ? snapshot.getCountry() : null)
                     .recipientAddress(snapshot != null ? snapshot.getEngAddress() : null)

@@ -43,6 +43,7 @@ public class ForeignTransferHistoryResponse {
     private String recipientBank;
     private String recipientAccountNumber;
     private String recipientCurrencyCode;
+    private String recipientCountryCode;
     private String recipientPhoneNumber;
     private String recipientEmail;
     private String recipientCountry;          // 수취인 국가

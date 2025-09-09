@@ -46,6 +46,9 @@ public class RecipientSnapshot {
     @Column(name = "eng_address")
     private String engAddress;
 
+    @Column(name = "country_number")
+    private String countryNumber;
+
     // 거래내역과 1:1 매핑
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "transaction_id", nullable = false)
