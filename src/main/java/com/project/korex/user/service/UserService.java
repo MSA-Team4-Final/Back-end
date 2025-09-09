@@ -1,9 +1,6 @@
 package com.project.korex.user.service;
 
-import com.project.korex.auth.exception.DuplicateEmailException;
-import com.project.korex.auth.exception.DuplicatePhoneException;
-import com.project.korex.auth.exception.LoginFailedException;
-import com.project.korex.auth.exception.PasswordMismatchException;
+import com.project.korex.auth.exception.*;
 import com.project.korex.auth.service.AuthService;
 import com.project.korex.common.code.ErrorCode;
 import com.project.korex.common.exception.UserNotFoundException;
@@ -115,7 +112,7 @@ public class UserService {
 
         // 이전과 동일 비밀번호 금지
         if (passwordEncoder.matches(req.getNewPassword(), user.getPassword())) {
-            throw new IllegalArgumentException("기존 비밀번호와 동일합니다.");
+            throw new SamePasswordException(ErrorCode.PASSWORD_SAME_AS_OLD);
         }
 
         user.setPassword(passwordEncoder.encode(req.getNewPassword()));
@@ -131,7 +128,7 @@ public class UserService {
             return userJpaRepository.existsByName(name);
         } catch (Exception e) {
             log.error("이름 존재 확인 실패: {}", e.getMessage());
-            throw new RuntimeException("사용자 조회 중 오류가 발생했습니다");
+            throw new UserNotFoundException(ErrorCode.USER_NOT_FOUND);
         }
     }
 
@@ -139,7 +136,7 @@ public class UserService {
     public boolean verifyRecipient(VerifyRecipientRequestDto dto) {
         try {
             Users user = userJpaRepository.findByPhone(dto.getPhone())
-                    .orElseThrow(() -> new RuntimeException("해당 번호의 사용자를 찾을 수 없습니다"));
+                    .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND));
 
             if(user.getId().equals(dto.getCurrentUserId())){
                 throw new CannotTransferToSelfException(ErrorCode.TRANSFER_NOT_SELF);
