@@ -62,35 +62,43 @@ public class ForeignTransferService {
         if (transferAmountKRW == null || transferAmountKRW.compareTo(BigDecimal.ZERO) <= 0)
             throw new RuntimeException("송금 금액이 유효하지 않습니다.");
 
+// 계좌 타입 결정
         AccountType recipientAccountType = request.getAccountType() != null ? request.getAccountType() : AccountType.KRW;
+        String toCurrency = request.getCurrencyCode();
+
+// 원화 계좌 조회
         Balance krwBalance = balanceRepository.findByUserIdAndAccountType(user.getId(), AccountType.KRW)
                 .orElseThrow(() -> new RuntimeException("원화 계좌가 없습니다."));
 
+// 공통 변수 초기화
         BigDecimal convertedAmount = transferAmountKRW;
         BigDecimal appliedRate = BigDecimal.ONE;
         BigDecimal feeAmount = BigDecimal.ZERO;
         BigDecimal totalDeductedAmountKRW = transferAmountKRW;
 
-        String toCurrency = request.getCurrencyCode();
+// 외화 계좌 처리
+        if (recipientAccountType == AccountType.FOREIGN && request.getCurrencyCode() != null
+                && supportedCurrencies.contains(request.getCurrencyCode())) {
 
-        if (recipientAccountType == AccountType.FOREIGN && toCurrency != null && supportedCurrencies.contains(toCurrency)) {
-            Balance targetForeignBalance = balanceRepository.findByUserIdAndCurrency_Code(user.getId(), toCurrency)
-                    .orElseThrow(() -> new RuntimeException(toCurrency + " 외화 계좌가 없습니다."));
+            Balance targetForeignBalance = balanceRepository.findByUserIdAndCurrency_Code(user.getId(), request.getCurrencyCode())
+                    .orElseThrow(() -> new RuntimeException(request.getCurrencyCode() + " 외화 계좌가 없습니다."));
 
             TransferExchangeRequest exchangeRequest = TransferExchangeRequest.builder()
                     .fromCurrency("KRW")
-                    .toCurrency(toCurrency)
+                    .toCurrency(request.getCurrencyCode())
                     .amount(transferAmountKRW)
                     .accountType(AccountType.FOREIGN)
                     .build();
 
             TransferExchangeResponse exchangeResult = foreignTransferExchangeService.simulateExchange(exchangeRequest);
 
+            // 외환 계산 결과 반영
             appliedRate = exchangeResult.getExchangeRate();
             convertedAmount = exchangeResult.getToAmount();
             feeAmount = exchangeResult.getFee();
             totalDeductedAmountKRW = exchangeResult.getTotalDeductedAmountKRW();
 
+            // 원화 잔액 체크 및 차감
             if (krwBalance.getAvailableAmount().compareTo(totalDeductedAmountKRW) < 0)
                 throw new RuntimeException("원화 잔액 부족");
 
@@ -98,9 +106,12 @@ public class ForeignTransferService {
             krwBalance.setHeldAmount(krwBalance.getHeldAmount().add(totalDeductedAmountKRW));
             balanceRepository.save(krwBalance);
 
+            // 외화 계좌에 송금액 추가
             targetForeignBalance.setAvailableAmount(targetForeignBalance.getAvailableAmount().add(convertedAmount));
             balanceRepository.save(targetForeignBalance);
+
         } else {
+            // KRW 계좌 처리
             TransferExchangeRequest exchangeRequest = TransferExchangeRequest.builder()
                     .fromCurrency("KRW")
                     .toCurrency("KRW")
@@ -126,8 +137,8 @@ public class ForeignTransferService {
                 .fromUser(user)
                 .toUser(user)
                 .transactionType(TransactionType.TRANSFER)
-                .sendAmount(transferAmountKRW)
-                .receiveAmount(convertedAmount)
+                .sendAmount(recipientAccountType == AccountType.FOREIGN ? convertedAmount : transferAmountKRW) // 실제 송금 통화
+                .receiveAmount(recipientAccountType == AccountType.FOREIGN ? convertedAmount : transferAmountKRW)
                 .exchangeRateApplied(appliedRate)
                 .feeAmount(feeAmount)
                 .totalDeductedAmount(totalDeductedAmountKRW)
@@ -149,8 +160,8 @@ public class ForeignTransferService {
                 .convertedAmount(convertedAmount)
                 .exchangeRate(appliedRate)
                 .accountPassword(request.getAccountPassword())
-                .krwNumber(recipientAccountType == AccountType.KRW ? request.getAccountNumber() : null)
-                .foreignNumber(recipientAccountType == AccountType.FOREIGN ? request.getAccountNumber() : null)
+                .krwNumber(recipientAccountType == AccountType.KRW ? request.getAccountNumber() : null) // KRW
+                .foreignNumber(recipientAccountType == AccountType.FOREIGN ? request.getAccountNumber() : null) // FOREIGN
                 .staffMessage(request.getStaffMessage())
                 .relationRecipient(request.getRelationRecipient())
                 .transactionType(TransactionType.TRANSFER)
