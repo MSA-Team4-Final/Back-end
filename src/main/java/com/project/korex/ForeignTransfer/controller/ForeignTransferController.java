@@ -5,6 +5,7 @@ import com.project.korex.ForeignTransfer.dto.request.TransferExchangeRequest;
 import com.project.korex.ForeignTransfer.dto.response.ForeignTransferHistoryResponse;
 import com.project.korex.ForeignTransfer.dto.response.ForeignTransferResponse;
 import com.project.korex.ForeignTransfer.dto.response.TransferExchangeResponse;
+import com.project.korex.ForeignTransfer.service.ForeignTransferExchangePreviewService;
 import com.project.korex.ForeignTransfer.service.ForeignTransferExchangeService;
 import com.project.korex.ForeignTransfer.service.ForeignTransferHistoryService;
 import com.project.korex.ForeignTransfer.service.ForeignTransferService;
@@ -27,6 +28,7 @@ public class ForeignTransferController {
 
     private final ForeignTransferService foreignTransferService;
     private final ForeignTransferExchangeService foreignTransferExchangeService;
+    private final ForeignTransferExchangePreviewService previewService;
     private final ForeignTransferHistoryService historyService;
 
     /**
@@ -56,22 +58,22 @@ public class ForeignTransferController {
     }
 
     /**
-     * 송금 전 환율/수수료 시뮬레이션
+     * 프론트용 미리보기 환율/수수료 계산
      */
-    @PostMapping("/exchange")
-    public ResponseEntity<?> simulateExchange(@RequestBody TransferExchangeRequest request) {
-        if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            return ResponseEntity.badRequest().body("송금 금액이 유효하지 않습니다. 0보다 큰 금액을 입력해주세요.");
-        }
-
+    @PostMapping("/preview")
+    public ResponseEntity<?> previewExchange(
+            @RequestParam String fromCurrency,
+            @RequestParam String toCurrency,
+            @RequestParam BigDecimal amount
+    ) {
         try {
-            TransferExchangeResponse response = foreignTransferExchangeService.simulateExchange(request);
+            TransferExchangeResponse response = previewService.simulatePreview(fromCurrency, toCurrency, amount);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("환율 시뮬레이션 중 오류가 발생했습니다: " + e.getMessage());
+                    .body("환율 미리보기 계산 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 

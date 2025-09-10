@@ -4,10 +4,7 @@ import com.project.korex.ForeignTransfer.dto.request.ForeignTransferRequest;
 import com.project.korex.ForeignTransfer.dto.request.TransferExchangeRequest;
 import com.project.korex.ForeignTransfer.dto.response.ForeignTransferResponse;
 import com.project.korex.ForeignTransfer.dto.response.TransferExchangeResponse;
-import com.project.korex.ForeignTransfer.entity.ForeignTransferTransaction;
-import com.project.korex.ForeignTransfer.entity.RecipientSnapshot;
-import com.project.korex.ForeignTransfer.entity.Sender;
-import com.project.korex.ForeignTransfer.entity.TermsAgreement;
+import com.project.korex.ForeignTransfer.entity.*;
 import com.project.korex.ForeignTransfer.enums.RequestStatus;
 import com.project.korex.ForeignTransfer.enums.TransferStatus;
 import com.project.korex.ForeignTransfer.repository.ForeignTransferTransactionRepository;
@@ -27,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.Set;
 
@@ -42,6 +40,7 @@ public class ForeignTransferService {
     private final CurrencyRepository currencyRepository;
     private final FileUploadService fileUploadService;
     private final ForeignTransferExchangeService foreignTransferExchangeService;
+    private final TransferFeeAdminService feeAdminService;
 
     private final Set<String> supportedCurrencies = Set.of("USD", "EUR", "JPY", "GBP", "AUD", "CAD", "CHF", "CNY");
 
@@ -67,73 +66,48 @@ public class ForeignTransferService {
         Balance krwBalance = balanceRepository.findByUserIdAndAccountType(user.getId(), AccountType.KRW)
                 .orElseThrow(() -> new RuntimeException("원화 계좌가 없습니다."));
 
-        BigDecimal convertedAmount = transferAmountKRW;
-        BigDecimal appliedRate = BigDecimal.ONE;
-        BigDecimal feeAmount = BigDecimal.ZERO;
-        BigDecimal totalDeductedAmountKRW = BigDecimal.ZERO;
-        BigDecimal frontTotalDeductedAmount = BigDecimal.ZERO;
+        BigDecimal convertedAmount;
+        BigDecimal appliedRate;
+        BigDecimal feeAmount;
+        BigDecimal totalDeductedAmountKRW;
 
         // -----------------------------
-        // 외화 계좌 송금 처리
+        // 실제 송금 실행
         // -----------------------------
-        if (recipientAccountType == AccountType.FOREIGN && toCurrency != null && supportedCurrencies.contains(toCurrency)) {
+        TransferExchangeRequest exchangeRequest = TransferExchangeRequest.builder()
+                .fromCurrency("KRW")
+                .toCurrency(toCurrency)
+                .amount(transferAmountKRW)
+                .accountType(recipientAccountType)
+                .build();
 
+        TransferExchangeResponse exchangeResult = foreignTransferExchangeService.executeExchange(exchangeRequest);
+
+        appliedRate = exchangeResult.getExchangeRate();
+        convertedAmount = exchangeResult.getToAmount();
+        feeAmount = exchangeResult.getFee();
+        totalDeductedAmountKRW = exchangeResult.getTotalDeductedAmountKRW();
+
+        // 원화 계좌 차감
+        if (krwBalance.getAvailableAmount().compareTo(totalDeductedAmountKRW) < 0)
+            throw new RuntimeException("원화 잔액 부족");
+
+        krwBalance.setAvailableAmount(krwBalance.getAvailableAmount().subtract(totalDeductedAmountKRW));
+        krwBalance.setHeldAmount(krwBalance.getHeldAmount().add(totalDeductedAmountKRW));
+        balanceRepository.save(krwBalance);
+
+        // 외화 계좌 차감 (외화 계좌일 때)
+        if (recipientAccountType == AccountType.FOREIGN) {
             Balance targetForeignBalance = balanceRepository.findByUserIdAndCurrency_Code(user.getId(), toCurrency)
                     .orElseThrow(() -> new RuntimeException(toCurrency + " 외화 계좌가 없습니다."));
 
-            // 환율 계산 요청
-            TransferExchangeRequest exchangeRequest = TransferExchangeRequest.builder()
-                    .fromCurrency("KRW")
-                    .toCurrency(toCurrency)
-                    .amount(transferAmountKRW)
-                    .accountType(AccountType.FOREIGN)
-                    .build();
-            TransferExchangeResponse exchangeResult = foreignTransferExchangeService.simulateExchange(exchangeRequest);
+            BigDecimal foreignDeductAmount = convertedAmount; // 실제 환율 적용 금액
+            if (targetForeignBalance.getAvailableAmount().compareTo(foreignDeductAmount) < 0)
+                throw new RuntimeException(toCurrency + " 외화 잔액 부족");
 
-            appliedRate = exchangeResult.getExchangeRate();
-            feeAmount = exchangeResult.getFee();
-
-            // 외화 단위 계산: simulateExchange에서 이미 JPY/단위 처리 완료
-            convertedAmount = exchangeResult.getToAmount();
-
-            // 원화 계좌: 수수료만 차감
-            totalDeductedAmountKRW = feeAmount;
-            frontTotalDeductedAmount = convertedAmount; // 프론트용: 외화 계좌 송금액 표시
-
-            if (krwBalance.getAvailableAmount().compareTo(totalDeductedAmountKRW) < 0)
-                throw new RuntimeException("원화 잔액 부족");
-
-            krwBalance.setAvailableAmount(krwBalance.getAvailableAmount().subtract(totalDeductedAmountKRW));
-            krwBalance.setHeldAmount(krwBalance.getHeldAmount().add(totalDeductedAmountKRW));
-            balanceRepository.save(krwBalance);
-
-            BigDecimal foreignDeductAmount = request.getTransferAmount(); // 5000엔 입력
             targetForeignBalance.setAvailableAmount(targetForeignBalance.getAvailableAmount().subtract(foreignDeductAmount));
             targetForeignBalance.setHeldAmount(targetForeignBalance.getHeldAmount().add(foreignDeductAmount));
-
-
-        } else {
-            // -----------------------------
-            // 원화 계좌 송금 처리
-            // -----------------------------
-            TransferExchangeRequest exchangeRequest = TransferExchangeRequest.builder()
-                    .fromCurrency("KRW")
-                    .toCurrency("KRW")
-                    .amount(transferAmountKRW)
-                    .accountType(AccountType.KRW)
-                    .build();
-            TransferExchangeResponse exchangeResult = foreignTransferExchangeService.simulateExchange(exchangeRequest);
-
-            convertedAmount = exchangeResult.getToAmount();
-            feeAmount = exchangeResult.getFee();
-            totalDeductedAmountKRW = exchangeResult.getTotalDeductedAmountKRW();
-            frontTotalDeductedAmount = totalDeductedAmountKRW;
-
-            if (krwBalance.getAvailableAmount().compareTo(totalDeductedAmountKRW) < 0)
-                throw new RuntimeException("원화 잔액 부족");
-            krwBalance.setAvailableAmount(krwBalance.getAvailableAmount().subtract(totalDeductedAmountKRW));
-            krwBalance.setHeldAmount(krwBalance.getHeldAmount().add(totalDeductedAmountKRW));
-            balanceRepository.save(krwBalance);
+            balanceRepository.save(targetForeignBalance);
         }
 
         // -----------------------------
@@ -234,7 +208,7 @@ public class ForeignTransferService {
                 .convertedAmount(convertedAmount)
                 .appliedRate(appliedRate)
                 .feeAmount(feeAmount)
-                .frontTotalDeductedAmount(frontTotalDeductedAmount)
+                .frontTotalDeductedAmount(totalDeductedAmountKRW)
                 .transferReason(request.getTransferReason())
                 .relationRecipient(request.getRelationRecipient())
                 .requestStatus(ftTransaction.getRequestStatus().name())

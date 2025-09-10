@@ -21,13 +21,13 @@ public class ForeignTransferExchangeService {
     private final TransferFeeAdminService feeAdminService;
     private final ExchangeRateCrawlerService exchangeRateCrawlerService;
 
-    private TransferFeeAdmin getFeePolicy(String currencyCode) {
+    public TransferFeeAdmin getFeePolicy(String currencyCode) {
         Optional<TransferFeeAdmin> policyOpt = feeAdminService.getPolicyByCurrency(currencyCode);
         return policyOpt.orElseThrow(() ->
                 new IllegalArgumentException(currencyCode + "에 대한 수수료 정책이 존재하지 않습니다."));
     }
 
-    private BigDecimal getExchangeRate(String currencyCode) {
+    public BigDecimal getExchangeRate(String currencyCode) {
         List<Map<String, String>> cachedRates = exchangeRateCrawlerService.getRealtimeCurrencyRateFromCache(currencyCode);
 
         if (cachedRates == null || cachedRates.isEmpty()) {
@@ -42,14 +42,14 @@ public class ForeignTransferExchangeService {
         return new BigDecimal(baseRateStr.replace(",", ""));
     }
 
-    public TransferExchangeResponse simulateExchange(TransferExchangeRequest request) {
+    public TransferExchangeResponse executeExchange(TransferExchangeRequest request) {
         if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("송금 금액이 유효하지 않습니다.");
         }
 
         BigDecimal fromAmount = request.getAmount();
-        String fromCurrency = request.getFromCurrency();
-        String toCurrency = request.getToCurrency();
+        String fromCurrency = request.getFromCurrency(); // 송금 계좌 통화
+        String toCurrency = request.getToCurrency();     // 수취 통화
 
         BigDecimal exchangeRate = BigDecimal.ONE;
         BigDecimal convertedAmount = fromAmount;
@@ -58,7 +58,6 @@ public class ForeignTransferExchangeService {
         if ("KRW".equals(fromCurrency) && !"KRW".equals(toCurrency)) {
             exchangeRate = getExchangeRate(toCurrency);
             if ("JPY".equals(toCurrency)) {
-                // 100엔 기준
                 convertedAmount = fromAmount.multiply(BigDecimal.valueOf(100))
                         .divide(exchangeRate, 0, RoundingMode.HALF_UP);
             } else {
@@ -67,7 +66,6 @@ public class ForeignTransferExchangeService {
         } else if (!"KRW".equals(fromCurrency) && "KRW".equals(toCurrency)) {
             exchangeRate = getExchangeRate(fromCurrency);
             if ("JPY".equals(fromCurrency)) {
-                // 100엔 기준
                 convertedAmount = fromAmount.divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
                         .multiply(exchangeRate).setScale(2, RoundingMode.HALF_UP);
             } else {
@@ -88,33 +86,41 @@ public class ForeignTransferExchangeService {
         }
 
         // 2️⃣ 수수료 계산 (원화 기준)
-        TransferFeeAdmin feePolicy = getFeePolicy("KRW");
+        TransferFeeAdmin feePolicy = getFeePolicy(toCurrency);
         BigDecimal feePercentage = BigDecimal.valueOf(feePolicy.getRate());
         BigDecimal minFee = BigDecimal.valueOf(feePolicy.getMinFee());
 
-        BigDecimal baseAmountForFee = "KRW".equals(fromCurrency) ? fromAmount
-                : ("JPY".equals(fromCurrency)
-                ? fromAmount.divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP).multiply(exchangeRate)
-                : fromAmount.multiply(exchangeRate));
+        // 백엔드용: 송금 계좌 기준 수수료
+        String feeCurrency = fromCurrency;
+        BigDecimal baseAmountForFee;
 
-        BigDecimal feeInKRW = baseAmountForFee.multiply(feePercentage).setScale(0, RoundingMode.HALF_UP);
+        if ("KRW".equals(feeCurrency)) {
+            baseAmountForFee = fromAmount;
+        } else if ("JPY".equals(feeCurrency)) {
+            baseAmountForFee = fromAmount.divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP)
+                    .multiply(exchangeRate);
+        } else {
+            baseAmountForFee = fromAmount.multiply(exchangeRate);
+        }
+
+        BigDecimal feeInKRW = baseAmountForFee.multiply(feePercentage)
+                .setScale(0, RoundingMode.HALF_UP);
+
         if (feeInKRW.compareTo(minFee) < 0) feeInKRW = minFee;
 
         // 3️⃣ 총 차감액 계산
-        BigDecimal totalDeductedAmount;      // 실제 송금 계좌에서 차감되는 금액
-        BigDecimal totalDeductedAmountKRW;   // 원화 계좌 기준 차감액 (수수료 포함)
+        BigDecimal totalDeductedAmount;      // 실제 송금 계좌 차감액
+        BigDecimal totalDeductedAmountKRW;   // 원화 기준 차감액 (수수료)
         BigDecimal frontTotalDeductedAmount; // 프론트 표시용
 
         if ("KRW".equals(fromCurrency)) {
-            // 원화 계좌: 수수료 포함
             totalDeductedAmount = fromAmount.add(feeInKRW);
             totalDeductedAmountKRW = totalDeductedAmount;
             frontTotalDeductedAmount = feeInKRW;
         } else {
-            // 외화 계좌: 외화 송금액 차감 / 원화 수수료 차감
             totalDeductedAmount = fromAmount;
             totalDeductedAmountKRW = feeInKRW;
-            frontTotalDeductedAmount = convertedAmount;
+            frontTotalDeductedAmount = feeInKRW;
         }
 
         return TransferExchangeResponse.builder()
