@@ -18,6 +18,7 @@ public class ForeignTransferResponse {
     private BigDecimal appliedRate;          // 적용 환율
     private BigDecimal feeAmount;            // 수수료
     private BigDecimal feePercentage;        // 수수료 비율
+    private BigDecimal frontTotalDeductedAmount; // 총 차감액
     private String krwAccount;               // 출금 계좌
     private String foreignAccount;           // 수취인 계좌
     private String withdrawalMethod;         // 출금 방식

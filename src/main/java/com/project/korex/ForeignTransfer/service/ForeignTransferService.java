@@ -13,7 +13,6 @@ import com.project.korex.ForeignTransfer.enums.TransferStatus;
 import com.project.korex.ForeignTransfer.repository.ForeignTransferTransactionRepository;
 import com.project.korex.ForeignTransfer.repository.TermsAgreementRepository;
 import com.project.korex.transaction.entity.Balance;
-import com.project.korex.transaction.entity.Currency;
 import com.project.korex.transaction.entity.Transaction;
 import com.project.korex.transaction.enums.AccountType;
 import com.project.korex.transaction.enums.TransactionType;
@@ -42,7 +41,6 @@ public class ForeignTransferService {
     private final TransactionRepository globalTransactionRepository;
     private final CurrencyRepository currencyRepository;
     private final FileUploadService fileUploadService;
-
     private final ForeignTransferExchangeService foreignTransferExchangeService;
 
     private final Set<String> supportedCurrencies = Set.of("USD", "EUR", "JPY", "GBP", "AUD", "CAD", "CHF", "CNY");
@@ -62,43 +60,46 @@ public class ForeignTransferService {
         if (transferAmountKRW == null || transferAmountKRW.compareTo(BigDecimal.ZERO) <= 0)
             throw new RuntimeException("송금 금액이 유효하지 않습니다.");
 
-// 계좌 타입 결정
         AccountType recipientAccountType = request.getAccountType() != null ? request.getAccountType() : AccountType.KRW;
         String toCurrency = request.getCurrencyCode();
 
-// 원화 계좌 조회
+        // 원화 계좌 조회
         Balance krwBalance = balanceRepository.findByUserIdAndAccountType(user.getId(), AccountType.KRW)
                 .orElseThrow(() -> new RuntimeException("원화 계좌가 없습니다."));
 
-// 공통 변수 초기화
         BigDecimal convertedAmount = transferAmountKRW;
         BigDecimal appliedRate = BigDecimal.ONE;
         BigDecimal feeAmount = BigDecimal.ZERO;
-        BigDecimal totalDeductedAmountKRW = transferAmountKRW;
+        BigDecimal totalDeductedAmountKRW = BigDecimal.ZERO;
+        BigDecimal frontTotalDeductedAmount = BigDecimal.ZERO;
 
-// 외화 계좌 처리
-        if (recipientAccountType == AccountType.FOREIGN && request.getCurrencyCode() != null
-                && supportedCurrencies.contains(request.getCurrencyCode())) {
+        // -----------------------------
+        // 외화 계좌 송금 처리
+        // -----------------------------
+        if (recipientAccountType == AccountType.FOREIGN && toCurrency != null && supportedCurrencies.contains(toCurrency)) {
 
-            Balance targetForeignBalance = balanceRepository.findByUserIdAndCurrency_Code(user.getId(), request.getCurrencyCode())
-                    .orElseThrow(() -> new RuntimeException(request.getCurrencyCode() + " 외화 계좌가 없습니다."));
+            Balance targetForeignBalance = balanceRepository.findByUserIdAndCurrency_Code(user.getId(), toCurrency)
+                    .orElseThrow(() -> new RuntimeException(toCurrency + " 외화 계좌가 없습니다."));
 
+            // 환율 계산 요청
             TransferExchangeRequest exchangeRequest = TransferExchangeRequest.builder()
                     .fromCurrency("KRW")
-                    .toCurrency(request.getCurrencyCode())
+                    .toCurrency(toCurrency)
                     .amount(transferAmountKRW)
                     .accountType(AccountType.FOREIGN)
                     .build();
-
             TransferExchangeResponse exchangeResult = foreignTransferExchangeService.simulateExchange(exchangeRequest);
 
-            // 외환 계산 결과 반영
             appliedRate = exchangeResult.getExchangeRate();
-            convertedAmount = exchangeResult.getToAmount();
             feeAmount = exchangeResult.getFee();
-            totalDeductedAmountKRW = exchangeResult.getTotalDeductedAmountKRW();
 
-            // 원화 잔액 체크 및 차감
+            // 외화 단위 계산: simulateExchange에서 이미 JPY/단위 처리 완료
+            convertedAmount = exchangeResult.getToAmount();
+
+            // 원화 계좌: 수수료만 차감
+            totalDeductedAmountKRW = feeAmount;
+            frontTotalDeductedAmount = convertedAmount; // 프론트용: 외화 계좌 송금액 표시
+
             if (krwBalance.getAvailableAmount().compareTo(totalDeductedAmountKRW) < 0)
                 throw new RuntimeException("원화 잔액 부족");
 
@@ -106,39 +107,46 @@ public class ForeignTransferService {
             krwBalance.setHeldAmount(krwBalance.getHeldAmount().add(totalDeductedAmountKRW));
             balanceRepository.save(krwBalance);
 
-            // 외화 계좌에 송금액 추가
-            targetForeignBalance.setAvailableAmount(targetForeignBalance.getAvailableAmount().add(convertedAmount));
-            balanceRepository.save(targetForeignBalance);
+            BigDecimal foreignDeductAmount = request.getTransferAmount(); // 5000엔 입력
+            targetForeignBalance.setAvailableAmount(targetForeignBalance.getAvailableAmount().subtract(foreignDeductAmount));
+            targetForeignBalance.setHeldAmount(targetForeignBalance.getHeldAmount().add(foreignDeductAmount));
+
 
         } else {
-            // KRW 계좌 처리
+            // -----------------------------
+            // 원화 계좌 송금 처리
+            // -----------------------------
             TransferExchangeRequest exchangeRequest = TransferExchangeRequest.builder()
                     .fromCurrency("KRW")
                     .toCurrency("KRW")
                     .amount(transferAmountKRW)
                     .accountType(AccountType.KRW)
                     .build();
-
             TransferExchangeResponse exchangeResult = foreignTransferExchangeService.simulateExchange(exchangeRequest);
 
             convertedAmount = exchangeResult.getToAmount();
             feeAmount = exchangeResult.getFee();
             totalDeductedAmountKRW = exchangeResult.getTotalDeductedAmountKRW();
+            frontTotalDeductedAmount = totalDeductedAmountKRW;
 
             if (krwBalance.getAvailableAmount().compareTo(totalDeductedAmountKRW) < 0)
                 throw new RuntimeException("원화 잔액 부족");
-
             krwBalance.setAvailableAmount(krwBalance.getAvailableAmount().subtract(totalDeductedAmountKRW));
             krwBalance.setHeldAmount(krwBalance.getHeldAmount().add(totalDeductedAmountKRW));
             balanceRepository.save(krwBalance);
         }
 
+        // -----------------------------
+        // 글로벌 트랜잭션 기록
+        // -----------------------------
+        BigDecimal sendReceiveAmount = (recipientAccountType == AccountType.FOREIGN) ? convertedAmount : transferAmountKRW;
+
         Transaction generalTransaction = Transaction.builder()
                 .fromUser(user)
                 .toUser(user)
                 .transactionType(TransactionType.TRANSFER)
-                .sendAmount(recipientAccountType == AccountType.FOREIGN ? convertedAmount : transferAmountKRW) // 실제 송금 통화
-                .receiveAmount(recipientAccountType == AccountType.FOREIGN ? convertedAmount : transferAmountKRW)
+                .sendAmount(sendReceiveAmount)
+                .receiveAmount(sendReceiveAmount)
                 .exchangeRateApplied(appliedRate)
                 .feeAmount(feeAmount)
                 .totalDeductedAmount(totalDeductedAmountKRW)
@@ -150,6 +158,9 @@ public class ForeignTransferService {
                 .build();
         globalTransactionRepository.save(generalTransaction);
 
+        // -----------------------------
+        // ForeignTransferTransaction, 수취인/송금인/약관 저장
+        // -----------------------------
         ForeignTransferTransaction ftTransaction = ForeignTransferTransaction.builder()
                 .user(user)
                 .transaction(generalTransaction)
@@ -160,8 +171,8 @@ public class ForeignTransferService {
                 .convertedAmount(convertedAmount)
                 .exchangeRate(appliedRate)
                 .accountPassword(request.getAccountPassword())
-                .krwNumber(recipientAccountType == AccountType.KRW ? request.getAccountNumber() : null) // KRW
-                .foreignNumber(recipientAccountType == AccountType.FOREIGN ? request.getAccountNumber() : null) // FOREIGN
+                .krwNumber(recipientAccountType == AccountType.KRW ? request.getAccountNumber() : null)
+                .foreignNumber(recipientAccountType == AccountType.FOREIGN ? request.getAccountNumber() : null)
                 .staffMessage(request.getStaffMessage())
                 .relationRecipient(request.getRelationRecipient())
                 .transactionType(TransactionType.TRANSFER)
@@ -178,6 +189,8 @@ public class ForeignTransferService {
         snapshot.setPhoneNumber(request.getPhoneNumber());
         snapshot.setEngAddress(request.getEngAddress());
         snapshot.setCountry(request.getCountry());
+        snapshot.setCountryNumber(request.getCountryNumber());
+        snapshot.setId(request.getRecipientId());
 
         Sender sender = Sender.builder()
                 .user(user)
@@ -190,12 +203,13 @@ public class ForeignTransferService {
                 .country(request.getCountry())
                 .engAddress(request.getEngAddress())
                 .relationRecipient(request.getRelationRecipient())
-                .accountType(recipientAccountType.name()) // KRW 또는 FOREIGN
-                .accountNumber(request.getAccountNumber()) // Builder 그대로 사용
+                .accountType(recipientAccountType.name())
+                .accountNumber(request.getAccountNumber())
                 .idFilePath(saveFilePath(ftTransaction, idFile, "ID"))
                 .proofDocumentFilePath(saveFilePath(ftTransaction, proofDocumentFile, "PROOF"))
                 .relationDocumentFilePath(saveFilePath(ftTransaction, relationDocumentFile, "RELATION"))
                 .build();
+
         ftTransaction.setRecipientSnapshot(snapshot);
         ftTransaction.setSender(sender);
         transactionRepository.save(ftTransaction);
@@ -209,6 +223,9 @@ public class ForeignTransferService {
                 .build();
         termsRepository.save(agreement);
 
+        // -----------------------------
+        // 최종 응답
+        // -----------------------------
         return ForeignTransferResponse.builder()
                 .transferId(ftTransaction.getId())
                 .senderId(sender.getId())
@@ -217,6 +234,7 @@ public class ForeignTransferService {
                 .convertedAmount(convertedAmount)
                 .appliedRate(appliedRate)
                 .feeAmount(feeAmount)
+                .frontTotalDeductedAmount(frontTotalDeductedAmount)
                 .transferReason(request.getTransferReason())
                 .relationRecipient(request.getRelationRecipient())
                 .requestStatus(ftTransaction.getRequestStatus().name())
