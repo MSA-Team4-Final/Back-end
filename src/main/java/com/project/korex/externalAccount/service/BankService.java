@@ -31,6 +31,17 @@ public class BankService {
                 .collect(Collectors.toList());
     }
 
+    public List<BankResponseDto> getUserActiveBanks(Long userId) {
+        // 사용자의 삭제되지 않은 계좌들과 연관된 은행들만 조회
+        List<Bank> banks = bankRepository.findBanksByUserActiveAccounts(userId);
+
+        return banks.stream()
+                .map(this::toBankResponse)
+                .collect(Collectors.toList());
+    }
+
+
+
     /**
      * 특정 은행 코드로 은행 정보 조회
      */

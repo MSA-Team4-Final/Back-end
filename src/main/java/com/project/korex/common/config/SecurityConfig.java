@@ -64,7 +64,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/balance/**", "/api/currency/currencies", "/api/transfer/execute").permitAll()
                         .requestMatchers("/api/user/exists/**", "/api/user/verify-recipient").permitAll()
                         .requestMatchers("/api/transaction/**").permitAll()
-                        .requestMatchers("/api/favorites").permitAll()
+                        .requestMatchers("/api/favorites", "/api/transaction/deposit-withdraw-history", "/api/transaction/deposit-withdraw-summary").permitAll()
                         .requestMatchers("/api/ForeignTransfer/recipients/**").authenticated()
                         .anyRequest().authenticated());
         http

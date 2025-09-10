@@ -1,10 +1,12 @@
 package com.project.korex.externalAccount.controller;
 
+import com.project.korex.common.security.user.CustomUserPrincipal;
 import com.project.korex.externalAccount.dto.response.BankResponseDto;
 import com.project.korex.externalAccount.service.BankService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,13 +19,22 @@ public class BankController {
 
     private final BankService bankService;
 
-    /**
-     * 모든 은행 목록 조회
-     */
+    // 기존 메서드 - 모든 은행
     @GetMapping
     public ResponseEntity<List<BankResponseDto>> getAllBanks() {
         List<BankResponseDto> banks = bankService.getAllBanks();
-        log.info("은행 목록 조회 완료 - 총 {}개", banks.size());
+        return ResponseEntity.ok(banks);
+    }
+
+    /**
+     * 모든 은행 목록 조회
+     */
+    @GetMapping("/my-banks")
+    public ResponseEntity<List<BankResponseDto>> getMyActiveBanks(
+            @AuthenticationPrincipal CustomUserPrincipal customUserPrincipal) {
+        Long userId = customUserPrincipal.getUserId(); // JWT에서 사용자 ID 추출
+        List<BankResponseDto> banks = bankService.getUserActiveBanks(userId);
+        log.info("사용자 활성 은행 조회 완료 - userId: {}, 결과: {}개", userId, banks.size());
         return ResponseEntity.ok(banks);
     }
 
