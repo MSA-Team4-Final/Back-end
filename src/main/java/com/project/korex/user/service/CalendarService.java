@@ -1,8 +1,11 @@
 package com.project.korex.user.service;
 
+import com.project.korex.common.code.ErrorCode;
 import com.project.korex.user.dto.CalendarEventDto;
 import com.project.korex.user.entity.CalendarEvent;
 import com.project.korex.user.entity.Users;
+import com.project.korex.user.exception.EventDeleteUnauthorizedException;
+import com.project.korex.user.exception.EventNotFoundException;
 import com.project.korex.user.repository.jpa.CalendarEventJpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -46,9 +49,9 @@ public class CalendarService {
 
     public void deleteEvent(Long id, Users user) {
         CalendarEvent event = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Event not found"));
+                .orElseThrow(() -> new EventNotFoundException(ErrorCode.EVENT_NOT_FOUND));
         if (!event.getUser().getId().equals(user.getId())) {
-            throw new RuntimeException("No permission to delete this event");
+            throw new EventDeleteUnauthorizedException(ErrorCode.EVENT_DELETE_FORBIDDEN);
         }
         repository.delete(event);
     }

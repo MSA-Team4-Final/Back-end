@@ -11,6 +11,7 @@ import com.project.korex.common.code.ErrorCode;
 import com.project.korex.common.security.jwt.JwtProvider;
 import com.project.korex.common.security.user.CustomUserPrincipal;
 import com.project.korex.user.enums.VerificationPurpose;
+import com.project.korex.user.repository.jpa.EmailVerificationTokenRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
@@ -23,11 +24,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.MessagingException;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Tag(name = "Auth API")
@@ -38,6 +41,7 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final EmailVerificationTokenRepository tokenRepository;
     private final CookieUtil cookieUtil;
     private final JwtProvider jwtProvider;
 
@@ -53,7 +57,7 @@ public class AuthController {
         response.addHeader("Authorization", "Bearer " + accessToken);
         cookieUtil.addCookie(response, "refreshToken", refreshToken, 60 * 60 * 24 * 14);
 
-        AuthStatusDto authStatusDto = new AuthStatusDto(true, userInfo);
+        AuthStatusDto authStatusDto = new AuthStatusDto(true, userInfo, accessToken);
         return new ResponseEntity<>(authStatusDto, HttpStatus.OK);
     }
 
@@ -99,20 +103,31 @@ public class AuthController {
             if (auths != null && !auths.isEmpty()) {
                 role = auths.iterator().next().getAuthority();
             }
-
             // 이메일 인증 여부
-            boolean emailVerified = auths != null && auths.stream()
-                    .anyMatch(a -> "VERIFIED".equals(a.getAuthority()));
+            boolean emailVerified = tokenRepository.existsByEmailAndVerifiedTrue(userDetails.getUser().getEmail());
+
+            System.out.print("emailVerified: " + emailVerified);
+            String status = userDetails.getUser().isRestricted() ? "RESTRICTED" : "UNLOCKED";
+            if (emailVerified && !userDetails.getUser().isRestricted()) {
+                status = "VERIFIED";
+            }
 
             UserInfoDto userInfo = new UserInfoDto(
                     userDetails.getUser().getId(),
                     userDetails.getName(),
                     role,
-                    emailVerified
+                    emailVerified,
+                    status
+
             );
-            return ResponseEntity.ok(new AuthStatusDto(true, userInfo));
+
+            List<String> authorities = userDetails.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .toList();
+            String accessToken = jwtProvider.createAccessToken(userDetails.getUser().getLoginId(), authorities);
+            return ResponseEntity.ok(new AuthStatusDto(true, userInfo, accessToken));
         } else {
-            return ResponseEntity.ok(new AuthStatusDto(false, null));
+            return ResponseEntity.ok(new AuthStatusDto(false, null, null));
         }
     }
 

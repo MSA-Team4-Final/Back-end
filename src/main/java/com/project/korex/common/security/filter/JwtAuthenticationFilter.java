@@ -55,9 +55,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         // 토큰 가져오고 없으면 null
-//        String accessToken = cookieUtil.getCookie(request, "accessToken")
-//                .map(Cookie::getValue)
-//                .orElse(null);
         String jwtToken = request.getHeader("Authorization");
         String accessToken = null;
 
@@ -83,9 +80,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String email = userDetails.getEmail();
                 if (email != null && !email.isBlank()) {
                     emailVerified = emailVerificationTokenRepository
-                            .existsByEmailAndPurposeAndVerifiedTrue(email, VerificationPurpose.SIGN_UP);
+                            .existsByEmailAndVerifiedTrue(email);
                 }
-                if (emailVerified) {
+                if (emailVerified && !userDetails.isRestricted()) {
                     authorities.add(new SimpleGrantedAuthority("VERIFIED"));
                 }
 
@@ -93,6 +90,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 if (userDetails.isRestricted()) {
                     authorities.add(new SimpleGrantedAuthority("RESTRICTED"));
                     log.warn("제한된 계정 로그인: {}", loginId);
+                } else {
+                    authorities.add(new SimpleGrantedAuthority("UNLOCKED"));
                 }
 
                 UsernamePasswordAuthenticationToken authentication =

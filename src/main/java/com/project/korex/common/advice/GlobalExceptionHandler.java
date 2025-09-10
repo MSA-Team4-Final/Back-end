@@ -5,6 +5,7 @@ import com.project.korex.common.code.ErrorCode;
 import com.project.korex.common.dto.ErrorResponseDto;
 import com.project.korex.common.exception.InsufficientBalanceException;
 import com.project.korex.common.exception.UserNotFoundException;
+import com.project.korex.support.exception.InquiryAnswerNotFoundException;
 import com.project.korex.transaction.exception.CannotTransferToSelfException;
 import com.project.korex.support.exception.InquiryWithdrawConflictException;
 import com.project.korex.support.exception.InquiryNotFoundException;
@@ -24,7 +25,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
             UserNotFoundException.class,
             RoleNotFoundException.class,
-            InquiryNotFoundException.class
+            InquiryNotFoundException.class,
+            InquiryAnswerNotFoundException.class
     })
     public ResponseEntity<ErrorResponseDto> handleNotFoundException(RuntimeException ex, HttpServletRequest request) {
         ErrorCode errorCode = getErrorCodeFromException(ex);

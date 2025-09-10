@@ -18,7 +18,10 @@ public enum ErrorCode {
     DUPLICATE_LOGIN_ID(HttpStatus.CONFLICT, "u002", "이미 사용 중인 아이디입니다."),
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "U003", "이미 사용 중인 이메일입니다."),
     PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "U004", "비밀번호가 일치하지 않습니다."),
-    DUPLICATE_PHONE(HttpStatus.CONFLICT, "u005", "이미 사용 중인 번호입니다."),
+    DUPLICATE_PHONE(HttpStatus.CONFLICT, "u005", "이미 사용 중인 전화번호입니다."),
+    PASSWORD_SAME_AS_OLD(HttpStatus.BAD_REQUEST, "u006", "기존 비밀번호와 동일합니다."),
+    EVENT_NOT_FOUND(HttpStatus.NOT_FOUND, "u007", "해당 일정을 찾을 수 없습니다."),
+    EVENT_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "u008", "해당 일정을 삭제할 권한이 없습니다."),
 
     // Auth (Axxx)
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "A001", "유효하지 않은 토큰입니다."),
@@ -35,15 +38,17 @@ public enum ErrorCode {
     // Support (SXXX)
     INQUIRY_NOT_FOUND(HttpStatus.NOT_FOUND, "S001", "문의 내역을 찾을 수 없습니다."),
     INQUIRY_WITHDRAW_CONFLICT(HttpStatus.CONFLICT, "S002", "문의 철회가 불가능한 상태입니다."),
+    INQUIRY_ACCESS_DENIED(HttpStatus.FORBIDDEN, "S003", "본인 문의만 조회할 수 있습니다."),
+    INQUIRY_ANSWER_NOT_FOUND(HttpStatus.NOT_FOUND, "S004", "등록된 답변이 없습니다."),
 
     // Balance
     INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST,"B001", "잔액이 부족합니다."),
     NOT_FOUND(HttpStatus.NOT_FOUND, "B002", "해당 통화가 없습니다."),
-   TRANSFER_NOT_SELF(HttpStatus.BAD_REQUEST, "B003", "본인에게 송금할 수 없습니다."),
+    TRANSFER_NOT_SELF(HttpStatus.BAD_REQUEST, "B003", "본인에게 송금할 수 없습니다."),
 
     // ForeignTransfer
-    CURRENCY_NOT_FOUND(HttpStatus.NOT_FOUND, "F001", "해당 통화를 찾을 수 없습니다."),
-    RECIPIENT_NOT_FOUND(HttpStatus.NOT_FOUND, "F002", "수취인 정보를 찾을 수 없습니다."),
+    CURRENCY_NOT_FOUND(HttpStatus.NOT_FOUND, "FT01", "해당 통화를 찾을 수 없습니다."),
+    RECIPIENT_NOT_FOUND(HttpStatus.NOT_FOUND, "FT02", "수취인 정보를 찾을 수 없습니다."),
 
     // Exchange
     INVALID_FROM_CURRENCY(HttpStatus.UNAUTHORIZED, "E001", "유효하지 않은 출금 통화입니다."),
