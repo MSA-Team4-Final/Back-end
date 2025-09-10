@@ -54,10 +54,12 @@ public class ClovaOcrService {
         Pattern rrnPattern = Pattern.compile("(\\d{6}-\\d{7})");
         Matcher rrnMatcher = rrnPattern.matcher(ocrResult);
         if (rrnMatcher.find()) {
-            data.setRrn(rrnMatcher.group(1));
-            data.setBirth(rrnMatcher.group(1).substring(0,6));
+            String rrn = rrnMatcher.group(1);
+            String maskedRrn = rrn.substring(0, 7)
+                    + "******";             // 뒤 6자리 마스킹
+            data.setRrn(maskedRrn);
+            data.setBirth(rrn.substring(0,6));
         }
-
         return data;
     }
 

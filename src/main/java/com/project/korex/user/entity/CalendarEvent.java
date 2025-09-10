@@ -36,9 +36,11 @@ public class CalendarEvent extends BaseEntity {
     private LocalDate date;
 
     // 시작 시간
+    @Column
     private LocalTime startTime;
 
     // 종료 시간
+    @Column
     private LocalTime endTime;
 }
 
