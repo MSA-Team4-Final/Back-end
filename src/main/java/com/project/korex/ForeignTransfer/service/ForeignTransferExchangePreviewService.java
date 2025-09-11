@@ -45,10 +45,16 @@ public class ForeignTransferExchangePreviewService {
         BigDecimal feeInKRW = calculateFee(fromCurrency, amount, exchangeRate, feePolicy);
 
         // 3️⃣ 총 차감액 계산
-        BigDecimal totalDeductedAmount = fromCurrency.equals("KRW") ? amount.add(feeInKRW) : amount;
-        BigDecimal totalDeductedAmountKRW = feeInKRW;
+        BigDecimal totalDeductedAmount;
+        if ("KRW".equals(fromCurrency)) {
+            totalDeductedAmount = amount.add(feeInKRW); // KRW 송금: 금액 + 수수료
+        } else {
+            // 외화 송금: 외화 금액 그대로 + KRW 수수료를 별도
+            totalDeductedAmount = amount; // 외화 총 차감액은 입력 금액 그대로
+        }
+        BigDecimal totalDeductedAmountKRW = feeInKRW; // KRW 계좌에서 수수료 차감
 
-        // JPY 소수점 처리
+// JPY 소수점 처리
         if ("JPY".equals(toCurrency)) {
             convertedAmount = convertedAmount.setScale(0, RoundingMode.HALF_UP);
         } else {
@@ -59,14 +65,14 @@ public class ForeignTransferExchangePreviewService {
                 .fromAmount(amount)
                 .toAmount(convertedAmount)
                 .exchangeRate(exchangeRate)
-                .fee(feeInKRW)
-                .totalDeductedAmount(totalDeductedAmount)
-                .totalDeductedAmountKRW(totalDeductedAmountKRW)
+                .fee(feeInKRW) // 수수료(KRW)
+                .totalDeductedAmount(totalDeductedAmount) // 보내는 통화 기준(수수료포함)
+                .totalDeductedAmountKRW(totalDeductedAmountKRW) // 수수료(KRW)
                 .rateUpdateTime(LocalDateTime.now())
                 .build();
-    }
+        }
 
-    private BigDecimal calculateConvertedAmount(String fromCurrency, String toCurrency, BigDecimal amount, BigDecimal exchangeRate) {
+        private BigDecimal calculateConvertedAmount(String fromCurrency, String toCurrency, BigDecimal amount, BigDecimal exchangeRate) {
         if ("KRW".equals(fromCurrency) && !"KRW".equals(toCurrency)) {
             if ("JPY".equals(toCurrency)) {
                 return amount.multiply(BigDecimal.valueOf(100)).divide(exchangeRate, 0, RoundingMode.HALF_UP);
