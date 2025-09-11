@@ -54,4 +54,5 @@ public class ForeignTransferRequest {
     private String recipientBank;
     private String recipientAccountNumber;
     private String recipientEmail;
+    private String recipientCurrencyCode;
 }

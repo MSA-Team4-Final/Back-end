@@ -1,6 +1,7 @@
 package com.project.korex.ForeignTransfer.controller;
 
 import com.project.korex.ForeignTransfer.dto.request.ForeignTransferRequest;
+import com.project.korex.ForeignTransfer.dto.request.PreviewExchangeRequest;
 import com.project.korex.ForeignTransfer.dto.request.TransferExchangeRequest;
 import com.project.korex.ForeignTransfer.dto.response.ForeignTransferHistoryResponse;
 import com.project.korex.ForeignTransfer.dto.response.ForeignTransferResponse;
@@ -12,6 +13,7 @@ import com.project.korex.ForeignTransfer.service.ForeignTransferService;
 import com.project.korex.common.security.user.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Parameter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -61,26 +64,25 @@ public class ForeignTransferController {
      * 프론트용 미리보기 환율/수수료 계산
      */
     @PostMapping("/preview")
-    public ResponseEntity<?> previewExchange(
-            @RequestParam String fromCurrency,
-            @RequestParam String toCurrency,
-            @RequestParam BigDecimal amount
-    ) {
-        try {
-            TransferExchangeResponse response = previewService.simulatePreview(fromCurrency, toCurrency, amount);
-            return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("환율 미리보기 계산 중 오류가 발생했습니다: " + e.getMessage());
-        }
+    public ResponseEntity<TransferExchangeResponse> previewExchange(
+            @RequestBody PreviewExchangeRequest request) {
+        TransferExchangeResponse response = previewService.simulatePreview(
+                request.getFromCurrency(),
+                request.getToCurrency(),
+                request.getAmount()
+        );
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/history")
     public List<ForeignTransferHistoryResponse> getUserTransferHistory(
-            @AuthenticationPrincipal CustomUserPrincipal principal) {
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
         String loginId = principal.getName();
-        return historyService.getUserTransferHistory(loginId);
+        return historyService.getUserTransferHistory(loginId, startDate, endDate);
     }
 }

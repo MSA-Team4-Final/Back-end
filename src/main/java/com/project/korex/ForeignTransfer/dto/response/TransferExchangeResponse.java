@@ -16,5 +16,5 @@ public class TransferExchangeResponse {
     private BigDecimal totalDeductedAmount;    // 계좌 기준 총 차감액 (KRW / 외화 계좌)
     private BigDecimal totalDeductedAmountKRW; // 원화 기준 총 차감액 (외화 계좌 참고용)
     private LocalDateTime rateUpdateTime;
-    private BigDecimal frontTotalDeductedAmount;
+    private BigDecimal feeInForeign;
 }

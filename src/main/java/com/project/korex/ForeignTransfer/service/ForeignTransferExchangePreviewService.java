@@ -47,7 +47,6 @@ public class ForeignTransferExchangePreviewService {
         // 3️⃣ 총 차감액 계산
         BigDecimal totalDeductedAmount = fromCurrency.equals("KRW") ? amount.add(feeInKRW) : amount;
         BigDecimal totalDeductedAmountKRW = feeInKRW;
-        BigDecimal frontTotalDeductedAmount = feeInKRW;
 
         // JPY 소수점 처리
         if ("JPY".equals(toCurrency)) {
@@ -63,32 +62,44 @@ public class ForeignTransferExchangePreviewService {
                 .fee(feeInKRW)
                 .totalDeductedAmount(totalDeductedAmount)
                 .totalDeductedAmountKRW(totalDeductedAmountKRW)
-                .frontTotalDeductedAmount(frontTotalDeductedAmount)
                 .rateUpdateTime(LocalDateTime.now())
                 .build();
     }
 
     private BigDecimal calculateConvertedAmount(String fromCurrency, String toCurrency, BigDecimal amount, BigDecimal exchangeRate) {
-        if ("KRW".equals(fromCurrency) && "JPY".equals(toCurrency)) {
-            return amount.multiply(BigDecimal.valueOf(100)).divide(exchangeRate, 0, RoundingMode.HALF_UP);
-        } else if ("JPY".equals(fromCurrency) && "KRW".equals(toCurrency)) {
-            return amount.divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP).multiply(exchangeRate).setScale(2, RoundingMode.HALF_UP);
-        } else if ("KRW".equals(fromCurrency) || "KRW".equals(toCurrency)) {
-            return amount.divide(exchangeRate, 2, RoundingMode.HALF_UP);
+        if ("KRW".equals(fromCurrency) && !"KRW".equals(toCurrency)) {
+            if ("JPY".equals(toCurrency)) {
+                return amount.multiply(BigDecimal.valueOf(100)).divide(exchangeRate, 0, RoundingMode.HALF_UP);
+            } else {
+                return amount.divide(exchangeRate, 4, RoundingMode.HALF_UP);
+            }
+        } else if (!"KRW".equals(fromCurrency) && "KRW".equals(toCurrency)) {
+            if ("JPY".equals(fromCurrency)) {
+                return amount.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP)
+                        .multiply(exchangeRate).setScale(2, RoundingMode.HALF_UP);
+            } else {
+                return amount.multiply(exchangeRate).setScale(2, RoundingMode.HALF_UP);
+            }
+        } else if (fromCurrency.equals(toCurrency)) {
+            return amount;
         } else {
-            // 기타 외화 간 변환: 단순 곱셈
-            return amount.multiply(exchangeRate).setScale(2, RoundingMode.HALF_UP);
+            // 외화 간 변환: KRW 기준 환율 적용
+            BigDecimal fromToKRW = ("JPY".equals(fromCurrency)) ?
+                    amount.divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP).multiply(getExchangeRate(fromCurrency))
+                    : amount.multiply(getExchangeRate(fromCurrency));
+            return fromToKRW.divide(getExchangeRate(toCurrency), 4, RoundingMode.HALF_UP);
         }
     }
 
     private BigDecimal calculateFee(String fromCurrency, BigDecimal amount, BigDecimal exchangeRate, TransferFeeAdmin feePolicy) {
+        // 원화 기준 금액으로 변환
         BigDecimal baseAmount;
         if ("KRW".equals(fromCurrency)) {
             baseAmount = amount;
         } else if ("JPY".equals(fromCurrency)) {
-            baseAmount = amount.divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP).multiply(exchangeRate);
+            baseAmount = amount.divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP).multiply(getExchangeRate("JPY"));
         } else {
-            baseAmount = amount.multiply(exchangeRate);
+            baseAmount = amount.multiply(getExchangeRate(fromCurrency));
         }
 
         BigDecimal fee = baseAmount.multiply(BigDecimal.valueOf(feePolicy.getRate())).setScale(0, RoundingMode.HALF_UP);

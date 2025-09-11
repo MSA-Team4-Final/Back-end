@@ -55,65 +55,84 @@ public class ForeignTransferService {
         Users user = userRepository.findByLoginId(loginId)
                 .orElseThrow(() -> new RuntimeException("유저를 찾을 수 없습니다."));
 
-        BigDecimal transferAmountKRW = request.getTransferAmount();
-        if (transferAmountKRW == null || transferAmountKRW.compareTo(BigDecimal.ZERO) <= 0)
+        BigDecimal transferAmount = request.getTransferAmount();
+        if (transferAmount == null || transferAmount.compareTo(BigDecimal.ZERO) <= 0)
             throw new RuntimeException("송금 금액이 유효하지 않습니다.");
 
         AccountType recipientAccountType = request.getAccountType() != null ? request.getAccountType() : AccountType.KRW;
-        String toCurrency = request.getCurrencyCode();
 
-        // 원화 계좌 조회
-        Balance krwBalance = balanceRepository.findByUserIdAndAccountType(user.getId(), AccountType.KRW)
-                .orElseThrow(() -> new RuntimeException("원화 계좌가 없습니다."));
+        // 프론트에서 들어오는 수취통화 우선 (DTO 필드명은 프로젝트에 맞게 사용)
+        String toCurrency = request.getRecipientCurrencyCode() != null && !request.getRecipientCurrencyCode().isEmpty()
+                ? request.getRecipientCurrencyCode()
+                : request.getCurrencyCode();
 
-        BigDecimal convertedAmount;
-        BigDecimal appliedRate;
-        BigDecimal feeAmount;
-        BigDecimal totalDeductedAmountKRW;
+        if (toCurrency == null || toCurrency.isBlank()) {
+            throw new RuntimeException("수취 통화가 유효하지 않습니다.");
+        }
 
         // -----------------------------
-        // 실제 송금 실행
+        // 송금 계좌 기준 통화와 잔액 조회
+        // -----------------------------
+        String fromCurrencyCode;
+        Balance sendingBalance;
+
+        if (recipientAccountType == AccountType.KRW) {
+            fromCurrencyCode = "KRW";
+            sendingBalance = balanceRepository.findByUserIdAndAccountType(user.getId(), AccountType.KRW)
+                    .orElseThrow(() -> new RuntimeException("원화 계좌가 없습니다."));
+        } else {
+            // 외화 계좌 선택: 송금 계좌 통화는 수취통화와 동일(USD 계좌에서 USD 보냄)
+            fromCurrencyCode = toCurrency;
+            sendingBalance = balanceRepository.findByUserIdAndCurrency_Code(user.getId(), toCurrency)
+                    .orElseThrow(() -> new RuntimeException(toCurrency + " 외화 계좌가 없습니다."));
+        }
+
+        // -----------------------------
+        // 환전 계산
         // -----------------------------
         TransferExchangeRequest exchangeRequest = TransferExchangeRequest.builder()
-                .fromCurrency("KRW")
+                .fromCurrency(fromCurrencyCode)
                 .toCurrency(toCurrency)
-                .amount(transferAmountKRW)
+                .amount(transferAmount)
                 .accountType(recipientAccountType)
                 .build();
 
         TransferExchangeResponse exchangeResult = foreignTransferExchangeService.executeExchange(exchangeRequest);
 
-        appliedRate = exchangeResult.getExchangeRate();
-        convertedAmount = exchangeResult.getToAmount();
-        feeAmount = exchangeResult.getFee();
-        totalDeductedAmountKRW = exchangeResult.getTotalDeductedAmountKRW();
+        // initial values from calculation
+        BigDecimal convertedAmount = exchangeResult.getToAmount();
+        BigDecimal feeAmount = exchangeResult.getFee(); // KRW 기준 수수료
+        BigDecimal totalDeductedAmountKRW = exchangeResult.getTotalDeductedAmountKRW();
 
-        // 원화 계좌 차감
-        if (krwBalance.getAvailableAmount().compareTo(totalDeductedAmountKRW) < 0)
-            throw new RuntimeException("원화 잔액 부족");
+        // -----------------------------
+        // 송금 계좌 잔액 차감 (송금 통화 기준)
+        // -----------------------------
+        BigDecimal amountToDeduct = exchangeResult.getTotalDeductedAmount(); // fromCurrency 기준 차감
+        if (sendingBalance.getAvailableAmount().compareTo(amountToDeduct) < 0) {
+            throw new RuntimeException("잔액 부족: " + fromCurrencyCode);
+        }
+        sendingBalance.setAvailableAmount(sendingBalance.getAvailableAmount().subtract(amountToDeduct));
+        sendingBalance.setHeldAmount(sendingBalance.getHeldAmount().add(amountToDeduct));
+        balanceRepository.save(sendingBalance);
 
-        krwBalance.setAvailableAmount(krwBalance.getAvailableAmount().subtract(totalDeductedAmountKRW));
-        krwBalance.setHeldAmount(krwBalance.getHeldAmount().add(totalDeductedAmountKRW));
-        balanceRepository.save(krwBalance);
-
-        // 외화 계좌 차감 (외화 계좌일 때)
-        if (recipientAccountType == AccountType.FOREIGN) {
-            Balance targetForeignBalance = balanceRepository.findByUserIdAndCurrency_Code(user.getId(), toCurrency)
-                    .orElseThrow(() -> new RuntimeException(toCurrency + " 외화 계좌가 없습니다."));
-
-            BigDecimal foreignDeductAmount = convertedAmount; // 실제 환율 적용 금액
-            if (targetForeignBalance.getAvailableAmount().compareTo(foreignDeductAmount) < 0)
-                throw new RuntimeException(toCurrency + " 외화 잔액 부족");
-
-            targetForeignBalance.setAvailableAmount(targetForeignBalance.getAvailableAmount().subtract(foreignDeductAmount));
-            targetForeignBalance.setHeldAmount(targetForeignBalance.getHeldAmount().add(foreignDeductAmount));
-            balanceRepository.save(targetForeignBalance);
+        // -----------------------------
+        // 외화 계좌인 경우 원화 수수료는 원화계좌에서 차감
+        // -----------------------------
+        if (!"KRW".equalsIgnoreCase(fromCurrencyCode)) {
+            Balance krwBalance = balanceRepository.findByUserIdAndAccountType(user.getId(), AccountType.KRW)
+                    .orElseThrow(() -> new RuntimeException("원화 계좌가 없습니다."));
+            if (krwBalance.getAvailableAmount().compareTo(feeAmount) < 0) {
+                throw new RuntimeException("원화 수수료 부족");
+            }
+            krwBalance.setAvailableAmount(krwBalance.getAvailableAmount().subtract(feeAmount));
+            krwBalance.setHeldAmount(krwBalance.getHeldAmount().add(feeAmount));
+            balanceRepository.save(krwBalance);
         }
 
         // -----------------------------
-        // 글로벌 트랜잭션 기록
+        // 글로벌 트랜잭션 기록 (fromCurrency = 송금계좌 통화, toCurrency = 수취 통화)
         // -----------------------------
-        BigDecimal sendReceiveAmount = (recipientAccountType == AccountType.FOREIGN) ? convertedAmount : transferAmountKRW;
+        BigDecimal sendReceiveAmount = (recipientAccountType == AccountType.FOREIGN) ? convertedAmount : transferAmount;
 
         Transaction generalTransaction = Transaction.builder()
                 .fromUser(user)
@@ -121,19 +140,18 @@ public class ForeignTransferService {
                 .transactionType(TransactionType.TRANSFER)
                 .sendAmount(sendReceiveAmount)
                 .receiveAmount(sendReceiveAmount)
-                .exchangeRateApplied(appliedRate)
+                // 일단 임시로 set (나중에 강제 덮어쓰기)
+                .exchangeRateApplied(BigDecimal.ZERO)
                 .feeAmount(feeAmount)
                 .totalDeductedAmount(totalDeductedAmountKRW)
-                .fromCurrencyCode(currencyRepository.findByCode("KRW").orElseThrow())
-                .toCurrencyCode(recipientAccountType == AccountType.FOREIGN
-                        ? currencyRepository.findByCode(toCurrency).orElseThrow()
-                        : currencyRepository.findByCode("KRW").orElseThrow())
+                .fromCurrencyCode(currencyRepository.findByCode(fromCurrencyCode).orElseThrow())
+                .toCurrencyCode(currencyRepository.findByCode(toCurrency).orElseThrow())
                 .status("PENDING")
                 .build();
         globalTransactionRepository.save(generalTransaction);
 
         // -----------------------------
-        // ForeignTransferTransaction, 수취인/송금인/약관 저장
+        // ForeignTransferTransaction 저장
         // -----------------------------
         ForeignTransferTransaction ftTransaction = ForeignTransferTransaction.builder()
                 .user(user)
@@ -141,9 +159,9 @@ public class ForeignTransferService {
                 .requestStatus(RequestStatus.SUBMITTED)
                 .transferStatus(TransferStatus.NOT_STARTED)
                 .createdAt(LocalDateTime.now())
-                .transferAmount(transferAmountKRW)
+                .transferAmount(transferAmount)
                 .convertedAmount(convertedAmount)
-                .exchangeRate(appliedRate)
+                .exchangeRate(BigDecimal.ZERO) // 나중에 강제 덮어쓰기
                 .accountPassword(request.getAccountPassword())
                 .krwNumber(recipientAccountType == AccountType.KRW ? request.getAccountNumber() : null)
                 .foreignNumber(recipientAccountType == AccountType.FOREIGN ? request.getAccountNumber() : null)
@@ -159,7 +177,7 @@ public class ForeignTransferService {
         snapshot.setEmail(request.getRecipientEmail());
         snapshot.setTransaction(ftTransaction);
         snapshot.setCreatedAt(LocalDateTime.now());
-        snapshot.setCurrencyCode(request.getCurrencyCode());
+        snapshot.setCurrencyCode(toCurrency); // 확실히 수취 통화로 저장
         snapshot.setPhoneNumber(request.getPhoneNumber());
         snapshot.setEngAddress(request.getEngAddress());
         snapshot.setCountry(request.getCountry());
@@ -198,17 +216,52 @@ public class ForeignTransferService {
         termsRepository.save(agreement);
 
         // -----------------------------
+        // 수취 통화 기준 환율로 강제 덮어쓰기(항상 적용)
+        // - getExchangeRateSafe 사용해서 KRW 예외 방지
+        // -----------------------------
+        BigDecimal forcedRate = foreignTransferExchangeService.getExchangeRateSafe(toCurrency);
+
+        // 덮어쓰기
+        generalTransaction.setExchangeRateApplied(forcedRate);
+        ftTransaction.setExchangeRate(forcedRate);
+
+        // 필요 시 convertedAmount 강제 재계산
+        BigDecimal finalConvertedAmount;
+        if ("KRW".equalsIgnoreCase(fromCurrencyCode) && !"KRW".equalsIgnoreCase(toCurrency)) {
+            // KRW -> 외화 (원래 계산과 동일하지만 round 조정)
+            if ("JPY".equalsIgnoreCase(toCurrency)) {
+                finalConvertedAmount = transferAmount.multiply(BigDecimal.valueOf(100)).divide(forcedRate, 0, RoundingMode.HALF_UP);
+            } else {
+                finalConvertedAmount = transferAmount.divide(forcedRate, 2, RoundingMode.HALF_UP);
+            }
+        } else if (!"KRW".equalsIgnoreCase(fromCurrencyCode) && "KRW".equalsIgnoreCase(toCurrency)) {
+            // 외화 -> KRW (외화계좌에서 보내는 경우)
+            if ("JPY".equalsIgnoreCase(fromCurrencyCode)) {
+                finalConvertedAmount = transferAmount.divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
+                        .multiply(forcedRate).setScale(2, RoundingMode.HALF_UP);
+            } else {
+                finalConvertedAmount = transferAmount.multiply(forcedRate).setScale(2, RoundingMode.HALF_UP);
+            }
+        } else {
+            // 동일 통화 (외화->외화 또는 KRW->KRW)
+            finalConvertedAmount = exchangeResult.getToAmount();
+        }
+
+        ftTransaction.setConvertedAmount(finalConvertedAmount);
+        transactionRepository.save(ftTransaction);
+        globalTransactionRepository.save(generalTransaction);
+
+        // -----------------------------
         // 최종 응답
         // -----------------------------
         return ForeignTransferResponse.builder()
                 .transferId(ftTransaction.getId())
                 .senderId(sender.getId())
                 .accountType(recipientAccountType.name())
-                .transferAmount(transferAmountKRW)
-                .convertedAmount(convertedAmount)
-                .appliedRate(appliedRate)
+                .transferAmount(transferAmount)
+                .convertedAmount(finalConvertedAmount)
+                .appliedRate(forcedRate)
                 .feeAmount(feeAmount)
-                .frontTotalDeductedAmount(totalDeductedAmountKRW)
                 .transferReason(request.getTransferReason())
                 .relationRecipient(request.getRelationRecipient())
                 .requestStatus(ftTransaction.getRequestStatus().name())
