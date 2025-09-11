@@ -59,7 +59,6 @@ public class AdminController {
         return ResponseEntity.ok("계정 잠금 완료");
     }
 
-
     // 문의 관리
     @GetMapping("/inquiries")
     public ResponseEntity<List<InquiryResponseDto>> getInquiries() {
@@ -82,11 +81,12 @@ public class AdminController {
         return ResponseEntity.ok(response);
     }
 
-    //Todo 필터링 추가
     @GetMapping("/inquiries/filter")
     public ResponseEntity<List<InquiryResponseDto>> getNotAnswerInquiries() {
         InquiryStatus status = InquiryStatus.REGISTERED;
         List<InquiryResponseDto> inquiries = adminService.getNotAnswerInquiries(status);
         return ResponseEntity.ok(inquiries);
     }
+
+    //Todo: 해외송금 관리
 }

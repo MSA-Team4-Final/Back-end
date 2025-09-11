@@ -9,4 +9,5 @@ public class OcrData {
     private String name;
     private String rrn;
     private String birth;
+    private boolean under19;
 }

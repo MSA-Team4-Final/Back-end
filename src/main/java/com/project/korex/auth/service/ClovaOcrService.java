@@ -16,6 +16,9 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.Period;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -54,10 +57,26 @@ public class ClovaOcrService {
         Pattern rrnPattern = Pattern.compile("(\\d{6}-\\d{7})");
         Matcher rrnMatcher = rrnPattern.matcher(ocrResult);
         if (rrnMatcher.find()) {
-            data.setRrn(rrnMatcher.group(1));
-            data.setBirth(rrnMatcher.group(1).substring(0,6));
-        }
+            String rrn = rrnMatcher.group(1);
+            String maskedRrn = rrn.substring(0, 7) + "******";  // 뒤 6자리 마스킹
+            data.setRrn(maskedRrn);
 
+            String birthYYMMDD = rrn.substring(0, 6);
+            data.setBirth(birthYYMMDD);
+
+            // 생년월일로 만 19세 이상 여부 확인
+            LocalDate today = LocalDate.now();
+
+            // 주민번호 7번째 자리로 세기 판별
+            char centuryCode = rrn.charAt(6);
+            int yearPrefix = (centuryCode == '1' || centuryCode == '2') ? 1900 : 2000;
+
+            String fullBirth = String.valueOf(yearPrefix).substring(0, 2) + birthYYMMDD; // yyyyMMdd
+            LocalDate birthDate = LocalDate.parse(fullBirth, DateTimeFormatter.ofPattern("yyyyMMdd"));
+
+            int age = Period.between(birthDate, today).getYears();
+            data.setUnder19(age < 19);
+        }
         return data;
     }
 

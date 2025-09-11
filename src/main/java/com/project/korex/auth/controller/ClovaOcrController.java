@@ -58,6 +58,7 @@ public class ClovaOcrController {
             response.put("name", data.getName());
             response.put("birth", data.getBirth());
             response.put("rrn", data.getRrn());
+            response.put("under19", String.valueOf(data.isUnder19()));
 
             return ResponseEntity.ok(response);
 
