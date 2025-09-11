@@ -2,6 +2,8 @@ package com.project.korex.externalAccount.repository;
 
 import com.project.korex.externalAccount.entity.Bank;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -19,4 +21,10 @@ public interface BankRepository extends JpaRepository<Bank, Long> {
 
     // 은행 코드 존재 여부 확인
     boolean existsByBankCode(String bankCode);
+
+    @Query("SELECT DISTINCT b FROM Bank b " +
+            "JOIN ExternalAccount ea ON ea.bankCode = b " +
+            "WHERE ea.user.id = :userId AND ea.deleted = false " +
+            "ORDER BY b.bankName")
+    List<Bank> findBanksByUserActiveAccounts(@Param("userId") Long userId);
 }

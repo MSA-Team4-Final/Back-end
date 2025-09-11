@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,7 +51,7 @@ public class ExchangeService {
     private final UserJpaRepository userRepository;
     // Redis 환율 조회는 RestTemplate으로 기존 API 호출
     private final RestTemplate restTemplate;
-
+    private final PasswordEncoder passwordEncoder;
 
 
     /**
@@ -80,7 +81,7 @@ public class ExchangeService {
     /**
      * 환전 실행
      */
-    public ExchangeResultDto executeExchange(Long userId, String fromCurrency, String toCurrency, BigDecimal amount) {
+    public ExchangeResultDto executeExchange(Long userId, String fromCurrency, String toCurrency, BigDecimal amount, String transactionPassword) {
         // 1. 사용자 존재 확인
         Users user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND));
@@ -105,7 +106,9 @@ public class ExchangeService {
         if (!balanceService.hasEnoughBalance(userId, fromCurrency, amount)) {
             throw new InsufficientBalanceException(ErrorCode.INSUFFICIENT_BALANCE);
         }
-
+        if (!passwordEncoder.matches(transactionPassword, user.getTransactionPassword())) {
+            throw new RuntimeException("거래 비밀번호가 일치하지 않습니다");
+        }
         // 5. 환전 실행 (기존 BalanceService 활용)
         balanceService.deductBalance(userId, fromCurrency, amount);
         balanceService.addBalance(userId, toCurrency, calculation.getConvertedAmount());
