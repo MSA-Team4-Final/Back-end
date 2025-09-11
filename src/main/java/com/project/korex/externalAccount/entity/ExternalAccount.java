@@ -1,6 +1,7 @@
 package com.project.korex.externalAccount.entity;
 
 import com.project.korex.common.BaseEntity;
+import com.project.korex.transaction.entity.Transaction;
 import com.project.korex.user.entity.Users;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -8,6 +9,10 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
 @Entity
 @Table(name = "external_account")
@@ -38,5 +43,13 @@ public class ExternalAccount extends BaseEntity {
 
     @Column(nullable = false)
     private Boolean isPrimary = false; // 주계좌 여부
+
+    @Column(name = "is_deleted")
+    private boolean deleted = false;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+//    @OneToMany(mappedBy = "transaction_external_account", cascade = CascadeType.ALL)
+//    private List<TransactionExternalAccount> transactions = new ArrayList<>();
 }
 

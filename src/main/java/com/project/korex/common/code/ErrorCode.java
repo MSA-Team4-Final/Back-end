@@ -62,7 +62,8 @@ public enum ErrorCode {
     FAVORITE_NOT_FOUND(HttpStatus.NOT_FOUND, "F004", "즐겨찾기를 찾을 수 없습니다"),
 
     // Account
-    INVALID_ACCOUNT_PASSWORD(HttpStatus.BAD_REQUEST, "AC01", "계좌 비밀번호가 유효하지 않습니다");
+    INVALID_ACCOUNT_PASSWORD(HttpStatus.BAD_REQUEST, "AC01", "계좌 비밀번호가 유효하지 않습니다"),
+    TRANSACTION_PASSWORD_MISMATCH(HttpStatus.UNAUTHORIZED, "AC02", "계좌 비밀번호가 일치하지 않습니다.");
 
     private final HttpStatus status;
     private final String code;
