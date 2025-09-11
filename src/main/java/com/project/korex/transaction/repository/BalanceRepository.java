@@ -2,6 +2,7 @@ package com.project.korex.transaction.repository;
 
 import com.project.korex.transaction.entity.Balance;
 import com.project.korex.transaction.entity.Currency;
+import com.project.korex.transaction.enums.AccountType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -19,5 +20,9 @@ public interface BalanceRepository extends JpaRepository<Balance, Long> {
     Optional<Balance> findByUserIdAndCurrency(Long userId, Currency currency);
 
     Optional<Balance> findByUserIdAndCurrencyCode(Long userId, String currencyCode);
+
+    Optional<Balance> findByUserIdAndAccountType(Long userId, AccountType accountType);
+
+    Optional<Balance> findByUserIdAndCurrency_Code(Long userId, String currencyCode);
 }
 
