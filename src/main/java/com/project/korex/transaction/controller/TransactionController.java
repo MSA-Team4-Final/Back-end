@@ -121,20 +121,19 @@ public class TransactionController {
 
         try {
             Long userId = userPrincipal.getUserId();
+            log.info("userId 추출 완료: {}", userId);
 
-            log.info("충전/출금 내역 조회 요청 - userId: {}, type: {}, startDate: {}, endDate: {}",
-                    userId, type, startDate, endDate);
-
+            log.info("서비스 호출 직전");
             List<DepositWithdrawHistoryDto> history = transactionService
                     .getDepositwithdrawHistory(userId, type, startDate, endDate);
-
-            log.info("충전/출금 내역 조회 완료 - 건수: {}", history.size());
+            log.info("서비스 호출 완료");
 
             return ResponseEntity.ok(history);
 
         } catch (Exception e) {
-            log.error("충전/출금 내역 조회 중 오류: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
+            log.error("컨트롤러에서 예외 발생 - 타입: {}, 메시지: {}",
+                    e.getClass().getSimpleName(), e.getMessage(), e);
+            throw e; // 예외를 다시 던져서 정확한 원인 파악
         }
     }
 

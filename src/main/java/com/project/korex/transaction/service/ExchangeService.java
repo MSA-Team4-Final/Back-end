@@ -88,6 +88,9 @@ public class ExchangeService {
         Users user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND));
 
+        if (!passwordEncoder.matches(transactionPassword, user.getTransactionPassword())) {
+            throw new TransactionPasswordMismatchException(ErrorCode.TRANSACTION_PASSWORD_MISMATCH);
+        }
         // 2. Currency 객체 조회
         Currency fromCurrencyEntity = currencyRepository.findById(fromCurrency)
                 .orElseThrow(() -> new ExchangeException(ErrorCode.INVALID_FROM_CURRENCY));
@@ -107,9 +110,6 @@ public class ExchangeService {
         // 4. 잔액 확인 (기존 BalanceService 활용)
         if (!balanceService.hasEnoughBalance(userId, fromCurrency, amount)) {
             throw new InsufficientBalanceException(ErrorCode.INSUFFICIENT_BALANCE);
-        }
-        if (!passwordEncoder.matches(transactionPassword, user.getTransactionPassword())) {
-            throw new TransactionPasswordMismatchException(ErrorCode.TRANSACTION_PASSWORD_MISMATCH);
         }
         // 5. 환전 실행 (기존 BalanceService 활용)
         balanceService.deductBalance(userId, fromCurrency, amount);

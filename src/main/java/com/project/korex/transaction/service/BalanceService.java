@@ -49,7 +49,7 @@ public class BalanceService {
         Currency currency = currencyRepository.findById(currencyCode)
                 .orElseThrow(() -> new RuntimeException("유효하지 않은 통화 코드: " + currencyCode));
 
-        Optional<Balance> balance = balanceRepository.findByUserIdAndCurrency(userId, currency);
+        Optional<Balance> balance = balanceRepository.findByUserIdAndCurrencyForUpdate(userId, currency);
         return balance.map(b -> b.getAvailableAmount().compareTo(amount) >= 0).orElse(false);
     }
 
@@ -57,7 +57,7 @@ public class BalanceService {
         Currency currency = currencyRepository.findById(currencyCode)
                 .orElseThrow(() -> new RuntimeException("유효하지 않은 통화 코드: " + currencyCode));
 
-        Balance balance = balanceRepository.findByUserIdAndCurrency(userId, currency)
+        Balance balance = balanceRepository.findByUserIdAndCurrencyForUpdate(userId, currency)
                 .orElseThrow(() -> new InsufficientBalanceException(ErrorCode.INSUFFICIENT_BALANCE));
 
         if (balance.getAvailableAmount().compareTo(amount) < 0) {
@@ -73,7 +73,7 @@ public class BalanceService {
         Currency currency = currencyRepository.findById(currencyCode)
                 .orElseThrow(() -> new RuntimeException("유효하지 않은 통화 코드: " + currencyCode));
 
-        Optional<Balance> existingBalance = balanceRepository.findByUserIdAndCurrency(userId, currency);
+        Optional<Balance> existingBalance = balanceRepository.findByUserIdAndCurrencyForUpdate(userId, currency);
 
         if (existingBalance.isPresent()) {
             Balance balance = existingBalance.get();
