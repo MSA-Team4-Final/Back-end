@@ -4,6 +4,7 @@ import com.project.korex.auth.exception.*;
 import com.project.korex.common.code.ErrorCode;
 import com.project.korex.common.dto.ErrorResponseDto;
 import com.project.korex.common.exception.InsufficientBalanceException;
+import com.project.korex.common.exception.TransactionPasswordMismatchException;
 import com.project.korex.common.exception.UserNotFoundException;
 import com.project.korex.support.exception.InquiryAnswerNotFoundException;
 import com.project.korex.transaction.exception.CannotTransferToSelfException;
@@ -75,7 +76,8 @@ public class GlobalExceptionHandler {
     // 401 UNAUTHORIZED - 인증 실패
     @ExceptionHandler({
             InvalidTokenException.class,
-            TokenExpriedException.class
+            TokenExpriedException.class,
+            TransactionPasswordMismatchException.class
     })
     public ResponseEntity<ErrorResponseDto> handleUnauthorizedException(RuntimeException ex, HttpServletRequest request) {
         ErrorCode errorCode = getErrorCodeFromException(ex);

@@ -2,6 +2,7 @@ package com.project.korex.transaction.service;
 
 import com.project.korex.common.code.ErrorCode;
 import com.project.korex.common.exception.InsufficientBalanceException;
+import com.project.korex.common.exception.TransactionPasswordMismatchException;
 import com.project.korex.common.exception.UserNotFoundException;
 import com.project.korex.exchangeRate.service.ExchangeRateCrawlerService;
 import com.project.korex.transaction.dto.response.ExchangeCalculationDto;
@@ -22,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.TransactionStatus;
@@ -107,7 +109,7 @@ public class ExchangeService {
             throw new InsufficientBalanceException(ErrorCode.INSUFFICIENT_BALANCE);
         }
         if (!passwordEncoder.matches(transactionPassword, user.getTransactionPassword())) {
-            throw new RuntimeException("거래 비밀번호가 일치하지 않습니다");
+            throw new TransactionPasswordMismatchException(ErrorCode.TRANSACTION_PASSWORD_MISMATCH);
         }
         // 5. 환전 실행 (기존 BalanceService 활용)
         balanceService.deductBalance(userId, fromCurrency, amount);
