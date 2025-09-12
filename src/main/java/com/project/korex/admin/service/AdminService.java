@@ -1,5 +1,10 @@
 package com.project.korex.admin.service;
 
+import com.project.korex.ForeignTransfer.entity.Recipient;
+import com.project.korex.ForeignTransfer.enums.TransferStatus;
+import com.project.korex.ForeignTransfer.repository.FileUploadRepository;
+import com.project.korex.ForeignTransfer.repository.ForeignTransferTransactionRepository;
+import com.project.korex.ForeignTransfer.repository.RecipientRepository;
 import com.project.korex.admin.dto.*;
 import com.project.korex.common.code.ErrorCode;
 import com.project.korex.common.exception.UserNotFoundException;
@@ -29,6 +34,9 @@ public class AdminService {
     private final UserJpaRepository userJpaRepository;
     private final InquiryJpaRepository inquiryJpaRepository;
     private final InquiryAnswerJpaRepository inquiryAnswerJpaRepository;
+    private final ForeignTransferTransactionRepository transactionRepository;
+    private final RecipientRepository recipientRepository;
+    private final FileUploadRepository fileUploadRepository;
 
     public MetricsResponseDto getMetrics(LocalDateTime start, LocalDateTime end) {
         long newUsers = userJpaRepository.countByCreatedAtBetween(start, end);
@@ -171,6 +179,50 @@ public class AdminService {
     }
 
     //Todo: 해외송금 리스트 출력, 승인/거절 처리
+    public List<RemittanceResponseDto> getAllRemittances() {
+        var transactions = transactionRepository.findAll();
 
+        return transactions.stream().map(t -> {
+            String currencyCode = null;
+            if (t.getRecipientSnapshot() != null) {
+                currencyCode = t.getRecipientSnapshot().getCurrencyCode();
+            } else if (t.getRecipient() != null && t.getRecipient().getCurrency() != null) {
+                currencyCode = t.getRecipient().getCurrency().getCode();
+            }
+
+            // 첨부파일 목록
+            var files = fileUploadRepository.findByForeignTransferTransaction_Id(t.getId())
+                    .stream()
+                    .map(f -> new FileDto(
+                            f.getOriginalFilename(),
+                            f.getStoredFilename(),
+                            "/api/admin/files/" + f.getId() + "/download" // 다운로드 URL
+                    ))
+                    .toList();
+
+            return new RemittanceResponseDto(
+                    t.getId(),
+                    t.getUser().getName(),
+                    t.getTransferAmount(),
+                    currencyCode,
+                    files,
+                    t.getTransferStatus().name()
+            );
+        }).toList();
+    }
+
+    public void approveTransfer(Long transferId) {
+        var transfer = transactionRepository.findById(transferId)
+                .orElseThrow(() -> new RuntimeException("송금 내역 없음"));
+        transfer.setTransferStatus(TransferStatus.COMPLETED);
+        transactionRepository.save(transfer);
+    }
+
+    public void rejectTransfer(Long transferId) {
+        var transfer = transactionRepository.findById(transferId)
+                .orElseThrow(() -> new RuntimeException("송금 내역 없음"));
+        transfer.setTransferStatus(TransferStatus.FAILED);
+        transactionRepository.save(transfer);
+    }
 
 }

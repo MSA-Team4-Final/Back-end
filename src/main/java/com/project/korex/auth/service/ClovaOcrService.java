@@ -74,7 +74,7 @@ public class ClovaOcrService {
             String fullBirth = String.valueOf(yearPrefix).substring(0, 2) + birthYYMMDD; // yyyyMMdd
             LocalDate birthDate = LocalDate.parse(fullBirth, DateTimeFormatter.ofPattern("yyyyMMdd"));
 
-            int age = Period.between(birthDate, today).getYears();
+            int age = Math.abs(Period.between(birthDate, today).getYears());
             data.setUnder19(age < 19);
         }
         return data;

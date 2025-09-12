@@ -18,5 +18,13 @@ public interface ForeignTransferTransactionRepository extends JpaRepository<Fore
 
     List<ForeignTransferTransaction> findAllByUser_LoginIdAndCreatedAtBetween(
             String loginId, LocalDateTime start, LocalDateTime end);
+
+    @Query("""
+        SELECT t
+        FROM ForeignTransferTransaction t
+        JOIN FETCH t.user u
+        WHERE u.id = :userId
+    """)
+    List<ForeignTransferTransaction> findAllByUserId(Long userId);
 }
 
