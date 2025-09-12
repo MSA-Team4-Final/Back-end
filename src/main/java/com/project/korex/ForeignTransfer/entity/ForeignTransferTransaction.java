@@ -87,8 +87,16 @@ public class ForeignTransferTransaction {
     @OneToOne(mappedBy = "transaction", cascade = CascadeType.ALL)
     private RecipientSnapshot recipientSnapshot;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "recipient_id", insertable = false, updatable = false)
+    private Recipient recipient;
+
     @Column(name = "recipient_id")
     private Long recipientId;
+
+    public Recipient getRecipient() {
+        return recipient;
+    }
 
     // 편의 메서드: Sender와 양방향 관계 설정
     public void setSender(Sender sender) {
@@ -97,4 +105,5 @@ public class ForeignTransferTransaction {
             sender.setForeignTransferTransaction(this);
         }
     }
+
 }

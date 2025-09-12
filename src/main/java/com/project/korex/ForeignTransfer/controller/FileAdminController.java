@@ -3,6 +3,7 @@ package com.project.korex.ForeignTransfer.controller;
 import com.project.korex.ForeignTransfer.entity.FileUpload;
 import com.project.korex.ForeignTransfer.repository.FileUploadRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
@@ -11,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.MalformedURLException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -23,11 +25,23 @@ public class FileAdminController {
     private final String uploadDir = "uploads/";
 
     // 파일 다운로드
-    @GetMapping("/{fileId}/download")
+    @GetMapping("{fileId}/download")
     public ResponseEntity<Resource> downloadFile(@PathVariable Long fileId) {
         FileUpload fileUpload = fileUploadRepository.findById(fileId)
-                .orElseThrow(() -> new RuntimeException("파일을 찾을 수 없습니다: " + fileId));
-        return getResourceResponse(fileUpload, true);
+                .orElseThrow(() -> new RuntimeException("파일 정보가 없습니다."));
+
+        Path filePath = Paths.get("C:/korex/uploads", fileUpload.getStoredFilename());
+        if (!Files.exists(filePath)) {
+            throw new RuntimeException("파일이 서버에 존재하지 않습니다.");
+        }
+
+        Resource resource = new FileSystemResource(filePath);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + fileUpload.getOriginalFilename() + "\"")
+                .body(resource);
     }
 
     // 파일 미리보기 (브라우저에서 바로 열림)

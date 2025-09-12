@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Tag(name = "Admin API")
 @Slf4j
@@ -88,5 +89,26 @@ public class AdminController {
         return ResponseEntity.ok(inquiries);
     }
 
-    //Todo: 해외송금 관리
+    @GetMapping("/list")
+    public ResponseEntity<List<RemittanceResponseDto>> getTransfers() {
+        return ResponseEntity.ok(adminService.getAllRemittances());
+    }
+
+    @PostMapping("/{id}/approve")
+    public ResponseEntity<Map<String, Object>> approve(@PathVariable Long id) {
+        adminService.approveTransfer(id);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "승인 완료"
+        ));
+    }
+
+    @PostMapping("/{id}/reject")
+    public ResponseEntity<Map<String, Object>> reject(@PathVariable Long id) {
+        adminService.rejectTransfer(id);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "거절 완료"
+        ));
+    }
 }
