@@ -63,7 +63,7 @@ springdoc:
     path: /swagger-ui.html
 
 custom:
-  site-host: http://localhost:8080       # ${SITE_HOST}
+  site-host: http://192.168.230.13:8080       # ${SITE_HOST}
 
 naver:
   client:

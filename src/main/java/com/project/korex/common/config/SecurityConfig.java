@@ -61,11 +61,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/logout", "/api/inquiries/**").authenticated()
                         .requestMatchers("/api/user/myinfo", "/api/user/calendar/**" ).hasAuthority("UNLOCKED")
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-//                        .requestMatchers("/api/balance/**", "/api/currency/currencies", "/api/transfer/execute").permitAll()
-//                        .requestMatchers("/api/user/exists/**", "/api/user/verify-recipient").permitAll()
-//                        .requestMatchers("/api/transaction/**").permitAll()
-//                        .requestMatchers("/api/favorites", "/api/transaction/deposit-withdraw-history", "/api/transaction/deposit-withdraw-summary").permitAll()
-//                        .requestMatchers("/api/ForeignTransfer/recipients/**").authenticated()
+                        .requestMatchers("/api/balance/**", "/api/currency/currencies", "/api/transfer/execute").permitAll()
+                        .requestMatchers("/api/user/exists/**", "/api/user/verify-recipient").permitAll()
+                        .requestMatchers("/api/transaction/**").permitAll()
+                        .requestMatchers("/api/favorites", "/api/transaction/deposit-withdraw-history", "/api/transaction/deposit-withdraw-summary").permitAll()
+                        //.requestMatchers("/api/ForeignTransfer/recipients/**").authenticated()
                         .anyRequest().hasAuthority("VERIFIED"));
                         //.anyRequest().authenticated());
         http
