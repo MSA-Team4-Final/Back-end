@@ -3,19 +3,25 @@ package com.project.korex.ForeignTransfer.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "ForeignTransferDocumentUpload")
+@Table(name = "ForeignTransferFileUpload")
 @Getter
 @Setter
-public class ForeignTransferDocumentUpload {
+@EntityListeners(AuditingEntityListener.class)
+public class FileUpload {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "document_id")
+    @Column(name = "file_id")
     private Long id;
+
+    @Column(name = "file_type")
+    private String fileType; // 예: ID, PROOF, RELATION
 
     @ManyToOne
     @JoinColumn(name = "transfer_id")
@@ -31,11 +37,12 @@ public class ForeignTransferDocumentUpload {
     private String fileUrl;
 
     @Column(name = "file_size")
-    private int fileSize;
+    private long fileSize;
 
     @Column(name = "content_type")
     private String contentType;
 
-    @Column(name = "upload_at")
-    private LocalDateTime uploadAt;
+    @CreatedDate
+    @Column(updatable = false)
+    private LocalDateTime uploadedAt;
 }

@@ -1,7 +1,6 @@
 package com.project.korex.ForeignTransfer.dto.request;
 
 import lombok.Data;
-import java.math.BigDecimal;
 
 @Data
 public class RecipientRequest {
@@ -13,8 +12,7 @@ public class RecipientRequest {
     private String country;
     private String phoneNumber;
     private String email;
-    private String relationRecipient;
-    private String currency;
+    private String currencyCode; // "USD"
     private String engAddress;
 
 }

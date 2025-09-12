@@ -1,10 +1,8 @@
 package com.project.korex.ForeignTransfer.entity;
 
-import com.project.korex.common.BaseEntity;
 import com.project.korex.user.entity.Users;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.math.BigDecimal;
 
@@ -12,7 +10,10 @@ import java.math.BigDecimal;
 @Table(name = "ForeignTransferSender")
 @Getter
 @Setter
-public class ForeignTransferSender {
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Sender {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,10 +21,10 @@ public class ForeignTransferSender {
     private Long id;
 
     @OneToOne
-    @JoinColumn(name = "transfer_id")
+    @JoinColumn(name = "transfer_id") // 외래 키 컬럼명
     private ForeignTransferTransaction foreignTransferTransaction;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private Users user;
 
@@ -48,17 +49,8 @@ public class ForeignTransferSender {
     @Column(name = "eng_address")
     private String engAddress;
 
-    @Column(name = "bank_name")
-    private String bankName;
-
-    @Column(name = "account_number")
-    private String accountNumber;
-
-    @Column(name = "transfer_amount")
-    private BigDecimal transferAmount;
-
-    @Column(name = "staff_message")
-    private String staffMessage;
+    @Column(name = "relation_recipient")
+    private String relationRecipient;
 
     @Column(name = "id_file_path")
     private String idFilePath;
@@ -68,4 +60,18 @@ public class ForeignTransferSender {
 
     @Column(name = "relation_document_file_path")
     private String relationDocumentFilePath;
+
+    @Column(name = "account_type")
+    private String accountType;
+
+    @Column(name = "account_number")
+    private String accountNumber;
+
+    // 편의 메서드: ForeignTransferTransaction과 양방향 설정
+    public void setForeignTransferTransaction(ForeignTransferTransaction transaction) {
+        this.foreignTransferTransaction = transaction;
+        if (transaction.getSender() != this) {
+            transaction.setSender(this);
+        }
+    }
 }
